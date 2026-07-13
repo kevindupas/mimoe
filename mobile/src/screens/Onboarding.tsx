@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Palette } from "../theme";
 import { auth, newDeviceId } from "../api";
@@ -76,12 +76,8 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
         <View style={{ width: 24 }} />
       </View>
 
-      <KeyboardAwareScrollView
-        contentContainerStyle={s.body}
-        keyboardShouldPersistTaps="handled"
-        bottomOffset={80}
-        showsVerticalScrollIndicator={false}
-      >
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={0}>
+      <View style={s.body}>
         <View style={s.illu}><Ionicons name={ICONS[step]} size={48} color={p.accent} /></View>
         <Text style={s.title}>{titles[step]}</Text>
         <Text style={s.sub}>{subs[step]}</Text>
@@ -112,16 +108,15 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
         </View>
 
         {error ? <Text style={s.error}>{error}</Text> : null}
-      </KeyboardAwareScrollView>
+      </View>
 
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
-        <View style={[s.foot, { paddingBottom: insets.bottom + 20 }]}>
-          <Pressable style={[s.btn, busy && { opacity: 0.6 }]} disabled={busy} onPress={next}>
-            {busy ? <ActivityIndicator color="#fff" /> :
-              <Text style={s.btnTxt}>{step === 0 ? "Commencer" : step === 3 ? "Terminer" : "Continuer"}</Text>}
-          </Pressable>
-        </View>
-      </KeyboardStickyView>
+      <View style={[s.foot, { paddingBottom: insets.bottom + 20 }]}>
+        <Pressable style={[s.btn, busy && { opacity: 0.6 }]} disabled={busy} onPress={next}>
+          {busy ? <ActivityIndicator color="#fff" /> :
+            <Text style={s.btnTxt}>{step === 0 ? "Commencer" : step === 3 ? "Terminer" : "Continuer"}</Text>}
+        </Pressable>
+      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -136,7 +131,7 @@ const styles = (p: Palette) => StyleSheet.create({
   pip: { width: 7, height: 7, borderRadius: 4, backgroundColor: p.border },
   pipOn: { width: 20 },
   pipDone: { backgroundColor: p.accent },
-  body: { flexGrow: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 30, paddingVertical: 20 },
+  body: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 30 },
   illu: { width: 110, height: 110, borderRadius: 55, backgroundColor: p.accentSoft, alignItems: "center", justifyContent: "center", marginBottom: 24 },
   title: { color: p.text, fontSize: 26, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
   sub: { color: p.textDim, fontSize: 14, textAlign: "center", lineHeight: 21, marginTop: 10, maxWidth: 320 },
