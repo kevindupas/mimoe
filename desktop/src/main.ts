@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import Echo from "laravel-echo";
-import Pusher from "pusher-js";
+import { listen } from "@tauri-apps/api/event";
 
-(window as any).Pusher = Pusher;
+// Le WebSocket temps reel tourne cote RUST (thread natif, jamais gele par le hide
+// de fenetre). Le frontend ne fait qu'ecouter les events pousses par le backend :
+//   "clip-received" -> un clip chiffre a rattraper, "ws-status" -> etat de la co.
 
 // --- Types ---
 interface FrontendConfig {
@@ -88,7 +89,6 @@ let search = "";
 let selected = 0;
 let view: "history" | "settings" | "onboarding" = "history";
 let soundOn = localStorage.getItem("clipd_sound") !== "off";
-let echo: any = null;
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -106,6 +106,9 @@ async function main() {
       selected = 0;
       focusSearch();
       renderList();
+      // Fenetre reouverte : le WS Rust n'a jamais coupe, mais on resync l'historique
+      // par securite (rattrape tout clip arrive pendant que la webview etait gelee).
+      if (config) loadHistory();
     }
   });
 }
@@ -264,7 +267,7 @@ async function startHistory() {
   config = await invoke<FrontendConfig>("get_config");
   renderHistory();
   await loadHistory();
-  connectRealtime();
+  await setupRealtimeListeners();
 }
 
 async function loadHistory() {
@@ -312,34 +315,38 @@ function setWsStatus(state: "connecting" | "connected" | "error") {
   if (dot) { dot.className = `ws-dot ${state}`; dot.title = "WebSocket : " + state; }
 }
 
-function connectRealtime() {
-  const c = config!;
-  try { echo?.disconnect(); } catch {}
-  setWsStatus("connecting");
-  echo = new Echo({
-    broadcaster: "reverb",
-    Pusher, // passe le constructeur explicitement (robuste vs window.Pusher)
-    key: c.reverb_app_key,
-    wsHost: c.reverb_host, wsPort: c.reverb_port, wssPort: c.reverb_port,
-    forceTLS: c.reverb_scheme === "https", enabledTransports: ["ws", "wss"],
-    authEndpoint: `${c.server_url}/broadcasting/auth`,
-    auth: { headers: { Authorization: `Bearer ${c.device_token}`, Accept: "application/json" } },
+// Le WS vit cote Rust : on s'abonne une seule fois aux events pousses par le backend.
+let realtimeReady = false;
+async function setupRealtimeListeners() {
+  if (realtimeReady) return;
+  realtimeReady = true;
+
+  // Etat de la co (dot dans le footer) pilote par le thread Rust.
+  await listen<string>("ws-status", (e) => {
+    const s = e.payload;
+    setWsStatus(s === "connected" ? "connected" : s === "error" ? "error" : "connecting");
   });
 
-  const conn = echo.connector?.pusher?.connection;
-  conn?.bind("connected", () => setWsStatus("connected"));
-  conn?.bind("error", (e: any) => { console.error("ws error", e); setWsStatus("error"); });
-  conn?.bind("unavailable", () => setWsStatus("error"));
-  conn?.bind("disconnected", () => setWsStatus("connecting"));
-
-  echo.private(`clips.${c.user_id}`).listen(".clip.received", async (raw: RawClip) => {
-    if (raw.origin_device_id === c.device_id) return;
+  // Nouveau clip pousse par le backend : dechiffre + affiche (anti-echo/dedup deja
+  // fait cote Rust pour l'echo, on rededup ici par securite).
+  await listen<RawClip>("clip-received", async (e) => {
+    const raw = e.payload;
+    if (!config || raw.origin_device_id === config.device_id) return;
     if (clips.some((x) => x.id === raw.id)) return;
     const clip = await decryptRaw(raw);
     if (!clip) return;
     clips.unshift(clip);
     if (soundOn) pop();
     renderList(clip.id);
+  });
+
+  // Clips supprimes cote serveur (cap/TTL) : retire-les de la liste, live.
+  await listen<string[]>("clips-deleted", (e) => {
+    const ids = new Set(e.payload ?? []);
+    if (!ids.size) return;
+    const before = clips.length;
+    clips = clips.filter((c) => !ids.has(c.id));
+    if (clips.length !== before) renderList();
   });
 }
 
@@ -502,7 +509,6 @@ function renderSettings() {
   });
   document.querySelector("#unpair")!.addEventListener("click", async () => {
     if (confirm("Désappairer ? Il faudra te reconnecter.")) {
-      try { echo?.disconnect(); } catch {}
       await invoke("unpair");
       config = null;
       clips = [];

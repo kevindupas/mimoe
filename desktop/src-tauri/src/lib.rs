@@ -1,5 +1,6 @@
 mod clipboard;
 mod crypto;
+mod realtime;
 mod store;
 
 use std::collections::HashSet;
@@ -269,6 +270,10 @@ pub fn run() {
 
             // Surveillance du presse-papier (emission). Idle tant que non configure.
             clipboard::start_monitor(app.handle().clone());
+
+            // Reception temps reel en thread NATIF (jamais gele par le hide de fenetre).
+            // Idle tant que non configure, se (re)connecte tout seul ensuite.
+            realtime::start(app.handle().clone());
 
             // Fermer la fenetre = la masquer (app menu bar), pas quitter.
             if let Some(w) = app.get_webview_window("main") {

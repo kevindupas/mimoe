@@ -43,4 +43,7 @@ objc2-foundation = { version = "0.2", features = ["NSString", "NSArray"] }
 ureq = { version = "2", features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
+# WebSocket NATIF (protocole Pusher/Reverb) : tourne dans un thread Rust, jamais gele
+# par le hide de fenetre (contrairement a pusher-js dans la webview WKWebView).
+tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 
