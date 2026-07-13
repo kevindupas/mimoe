@@ -69,6 +69,24 @@ class ClipController extends Controller
         return response()->json(['data' => $clip], 201);
     }
 
+    /** Suppression manuelle d'un clip par l'utilisateur (+ son blob) + broadcast live. */
+    public function destroy(Request $request, string $id): JsonResponse
+    {
+        $clip = Clip::where('user_id', $request->user()->id)->find($id);
+        if (! $clip) {
+            return response()->json(['message' => 'introuvable'], 404);
+        }
+
+        $blobId = $clip->blob_id;
+        $clip->delete();
+        if ($blobId) {
+            \App\Models\Blob::where('id', $blobId)->delete();
+        }
+        broadcast(new \App\Events\ClipsDeleted($request->user()->id, [$id]));
+
+        return response()->json(['ok' => true]);
+    }
+
     /** Cap dur par utilisateur : garde les N clips récents. Supprime le reste
      * (+ leurs blobs) et prévient les clients pour qu'ils retirent ces ids live. */
     protected function enforceMaxClips(int $userId): void

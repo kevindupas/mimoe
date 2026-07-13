@@ -92,6 +92,26 @@ class ClipTest extends TestCase
         $this->assertCount(1, $this->getJson('/api/clips')->json('data'));
     }
 
+    public function test_user_can_delete_own_clip(): void
+    {
+        $u = User::factory()->create();
+        $clip = $this->seedClip($u);
+        Sanctum::actingAs($u);
+
+        $this->deleteJson("/api/clip/{$clip->id}")->assertOk();
+        $this->assertDatabaseMissing('clips', ['id' => $clip->id]);
+    }
+
+    public function test_cannot_delete_another_users_clip(): void
+    {
+        $owner = User::factory()->create();
+        $clip = $this->seedClip($owner);
+
+        Sanctum::actingAs(User::factory()->create());
+        $this->deleteJson("/api/clip/{$clip->id}")->assertNotFound();
+        $this->assertDatabaseHas('clips', ['id' => $clip->id]);
+    }
+
     public function test_enforces_max_clips_cap(): void
     {
         config(['clipd.max_clips' => 50]);
