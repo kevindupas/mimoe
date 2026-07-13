@@ -10,6 +10,7 @@ interface FrontendConfig {
   server_url: string;
   device_id: string;
   device_token: string;
+  user_id: number;
   reverb_app_key: string;
   reverb_host: string;
   reverb_port: number;
@@ -106,7 +107,11 @@ async function main() {
 }
 
 // --- Onboarding (wizard multi-étapes) ---
-const onboard = { step: 0, server: "", deviceId: "", token: "", passphrase: "", error: "", busy: false };
+const onboard = {
+  step: 0, server: "", email: "", password: "", passphrase: "",
+  mode: "register" as "register" | "login",
+  error: "", busy: false,
+};
 const OB_STEPS = 4;
 
 function stepContent(step: number): { illu: string; title: string; sub: string; body: string; cta: string } {
@@ -124,18 +129,18 @@ function stepContent(step: number): { illu: string; title: string; sub: string; 
         illu: illuServer,
         title: "Ton serveur",
         sub: "L'adresse de ton instance Clipd. C'est le seul point de rendez-vous — il ne voit jamais tes données en clair.",
-        body: `<input id="ob-input" class="ob-field" placeholder="http://100.x.x.x:8899" spellcheck="false" autocomplete="off" value="${escapeHtml(onboard.server)}" />`,
+        body: `<input id="ob-input" class="ob-field" placeholder="https://clipd.exemple.com" spellcheck="false" autocomplete="off" value="${escapeHtml(onboard.server)}" />`,
         cta: "Continuer",
       };
     case 2:
       return {
         illu: illuDevice,
-        title: "Cet appareil",
-        sub: "Colle l'identifiant et le token générés par la commande de pairing sur ton serveur.",
+        title: onboard.mode === "register" ? "Crée ton compte" : "Connecte-toi",
+        sub: "Ton compte relie tous tes appareils. Historique isolé, rien que le tien.",
         body: `
-          <input id="ob-input" class="ob-field" placeholder="Device ID (uuid)" spellcheck="false" autocomplete="off" value="${escapeHtml(onboard.deviceId)}" />
-          <input id="ob-input2" class="ob-field" placeholder="Token appareil" spellcheck="false" autocomplete="off" value="${escapeHtml(onboard.token)}" />
-          <div class="ob-hint">Terminal serveur : <code>php artisan clipd:pair "MacBook" macos</code></div>`,
+          <input id="ob-input" class="ob-field" type="email" placeholder="Email" spellcheck="false" autocomplete="off" value="${escapeHtml(onboard.email)}" />
+          <input id="ob-input2" class="ob-field" type="password" placeholder="Mot de passe" autocomplete="off" value="${escapeHtml(onboard.password)}" />
+          <div class="ob-hint">${onboard.mode === "register" ? "Déjà un compte ?" : "Pas de compte ?"} <a id="ob-toggle" href="#">${onboard.mode === "register" ? "Se connecter" : "Créer un compte"}</a></div>`,
         cta: "Continuer",
       };
     default:
@@ -144,7 +149,7 @@ function stepContent(step: number): { illu: string; title: string; sub: string; 
         title: "La clé secrète",
         sub: "Une passphrase que tu tapes sur chacun de tes appareils. Elle chiffre tout et ne quitte jamais ce Mac.",
         body: `<input id="ob-input" class="ob-field" type="password" placeholder="Passphrase partagée" autocomplete="off" value="${escapeHtml(onboard.passphrase)}" />`,
-        cta: onboard.busy ? "Appairage…" : "Terminer",
+        cta: onboard.busy ? "Connexion…" : "Terminer",
       };
   }
 }
@@ -177,6 +182,13 @@ function renderOnboarding() {
 
   document.querySelector("#ob-next")!.addEventListener("click", obNext);
   document.querySelector("#ob-back")?.addEventListener("click", () => { onboard.error = ""; onboard.step--; renderOnboarding(); });
+  document.querySelector("#ob-toggle")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    onboard.email = (document.querySelector<HTMLInputElement>("#ob-input")?.value || "").trim();
+    onboard.password = document.querySelector<HTMLInputElement>("#ob-input2")?.value || "";
+    onboard.mode = onboard.mode === "register" ? "login" : "register";
+    renderOnboarding();
+  });
   requestAnimationFrame(() => document.querySelector<HTMLInputElement>("#ob-input")?.focus());
 }
 
@@ -189,9 +201,11 @@ async function obNext() {
     if (!s) return setObError("Renseigne l'adresse du serveur.");
     onboard.server = s;
   } else if (onboard.step === 2) {
-    if (!v("ob-input") || !v("ob-input2")) return setObError("Device ID et token requis.");
-    onboard.deviceId = v("ob-input");
-    onboard.token = v("ob-input2");
+    const email = v("ob-input");
+    const pw = document.querySelector<HTMLInputElement>("#ob-input2")?.value || "";
+    if (!email || !pw) return setObError("Email et mot de passe requis.");
+    onboard.email = email;
+    onboard.password = pw;
   } else if (onboard.step === 3) {
     const p = document.querySelector<HTMLInputElement>("#ob-input")!.value || "";
     if (!p) return setObError("La passphrase est requise.");
@@ -211,16 +225,26 @@ async function doPair() {
   onboard.busy = true;
   renderOnboarding();
   try {
-    const res = await fetch(`${onboard.server}/api/config`, {
-      headers: { Authorization: `Bearer ${onboard.token}`, Accept: "application/json" },
+    const deviceId = crypto.randomUUID();
+    const res = await fetch(`${onboard.server}/api/${onboard.mode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        email: onboard.email, password: onboard.password,
+        device_id: deviceId, device_name: "Desktop", platform: "macos",
+      }),
     });
-    if (!res.ok) throw new Error(`serveur ${res.status} (token invalide ?)`);
-    const rc = await res.json();
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const msg = body?.message || (res.status === 422 ? "identifiants invalides" : `erreur ${res.status}`);
+      throw new Error(msg);
+    }
+    const r = await res.json();
     await invoke("setup", {
-      serverUrl: onboard.server, deviceId: onboard.deviceId, deviceToken: onboard.token,
+      serverUrl: onboard.server, deviceId, deviceToken: r.token, userId: r.user_id,
       passphrase: onboard.passphrase,
-      reverbAppKey: rc.reverb_app_key, reverbHost: rc.reverb_host,
-      reverbPort: rc.reverb_port, reverbScheme: rc.reverb_scheme,
+      reverbAppKey: r.reverb_app_key, reverbHost: r.reverb_host,
+      reverbPort: r.reverb_port, reverbScheme: r.reverb_scheme,
     });
     onboard.busy = false;
     await startHistory();
@@ -282,7 +306,7 @@ function connectRealtime() {
     authEndpoint: `${c.server_url}/broadcasting/auth`,
     auth: { headers: { Authorization: `Bearer ${c.device_token}`, Accept: "application/json" } },
   });
-  echo.private("clips").listen(".clip.received", async (raw: RawClip) => {
+  echo.private(`clips.${c.user_id}`).listen(".clip.received", async (raw: RawClip) => {
     if (raw.origin_device_id === c.device_id) return;
     if (clips.some((x) => x.id === raw.id)) return;
     const clip = await decryptRaw(raw);
@@ -387,13 +411,9 @@ function renderSettings() {
         <div class="group">
           <div class="group-title">Connexion</div>
           <div class="group-card">
-            <div class="row"><div class="row-edit">
-              <input id="server" value="${escapeHtml(c.server_url)}" spellcheck="false" autocomplete="off" />
-              <button id="save-server" class="mini">Enregistrer</button>
-            </div></div>
+            <div class="row"><span class="label">Serveur</span><span class="val">${escapeHtml(c.server_url)}</span></div>
             <div class="row"><span class="label">Cet appareil</span><span class="val">${escapeHtml(c.device_id.slice(0, 8))}…</span></div>
           </div>
-          <div id="server-status"></div>
         </div>
 
         <div class="group">
@@ -430,14 +450,13 @@ function renderSettings() {
     localStorage.setItem("clipd_sound", soundOn ? "on" : "off");
     if (soundOn) pop();
   });
-  document.querySelector("#save-server")!.addEventListener("click", saveServer);
   document.querySelector("#unpair")!.addEventListener("click", async () => {
-    if (confirm("Désappairer ? Il faudra refaire la configuration.")) {
+    if (confirm("Désappairer ? Il faudra te reconnecter.")) {
       try { echo?.disconnect(); } catch {}
       await invoke("unpair");
       config = null;
       clips = [];
-      onboard.step = 0; onboard.server = ""; onboard.deviceId = ""; onboard.token = ""; onboard.passphrase = ""; onboard.error = "";
+      onboard.step = 0; onboard.server = ""; onboard.email = ""; onboard.password = ""; onboard.passphrase = ""; onboard.error = "";
       renderOnboarding();
     }
   });
@@ -446,36 +465,6 @@ function renderSettings() {
 function goBackFromSettings() {
   renderHistory();
   renderList();
-}
-
-async function saveServer() {
-  const input = document.querySelector<HTMLInputElement>("#server")!;
-  const btn = document.querySelector<HTMLButtonElement>("#save-server")!;
-  const status = document.querySelector<HTMLDivElement>("#server-status")!;
-  const url = input.value.trim().replace(/\/+$/, "");
-  if (!url) return;
-
-  btn.disabled = true;
-  status.innerHTML = "";
-  try {
-    const res = await fetch(`${url}/api/config`, {
-      headers: { Authorization: `Bearer ${config!.device_token}`, Accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`serveur ${res.status}`);
-    const rc = await res.json();
-    await invoke("update_server", {
-      serverUrl: url, reverbAppKey: rc.reverb_app_key, reverbHost: rc.reverb_host,
-      reverbPort: rc.reverb_port, reverbScheme: rc.reverb_scheme,
-    });
-    config = await invoke<FrontendConfig>("get_config");
-    await loadHistory();      // recharge depuis le nouveau serveur
-    connectRealtime();        // reconnecte le WebSocket
-    status.innerHTML = `<span class="saved">✓ Enregistré et reconnecté</span>`;
-  } catch (e: any) {
-    status.innerHTML = `<span class="error">${escapeHtml(e.message ?? String(e))}</span>`;
-  } finally {
-    btn.disabled = false;
-  }
 }
 
 // --- Global keyboard (Raycast-like) ---

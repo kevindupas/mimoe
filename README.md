@@ -33,6 +33,22 @@ Ce sont toujours les clients qui initient la connexion (POST + WebSocket sortant
 
 La crypto est identique sur les trois plateformes (Argon2id + AES-256-GCM, même sel partagé) — interopérabilité vérifiée par tests.
 
+## Comptes
+
+Chaque instance héberge plusieurs utilisateurs. Un compte (email + mot de passe) relie tous tes appareils avec un **historique isolé**. L'authentification passe par des tokens Sanctum ; les mots de passe sont hashés (bcrypt). L'onboarding des clients = **serveur → inscription/connexion → passphrase**.
+
+## Déploiement (Docker)
+
+```bash
+cd server
+cp .env.docker.example .env
+docker compose run --rm app php artisan key:generate --show   # colle la clé dans .env (APP_KEY)
+# édite .env : DB_PASSWORD, REVERB_APP_KEY, REVERB_APP_SECRET
+docker compose up -d --build
+```
+
+Lance quatre services : `db` (Postgres), `app` (API sur `:8000`, migrations auto), `reverb` (WebSocket sur `:8080`), `scheduler` (purge TTL). Expose ensuite comme tu veux : domaine + TLS (reverse proxy Caddy/Traefik), VPN, ou LAN — c'est le choix de l'hébergeur. Derrière un proxy TLS, mets `REVERB_CLIENT_PORT` sur le port public de Reverb.
+
 ## Démarrage rapide (dev)
 
 **Serveur**
@@ -43,12 +59,6 @@ php artisan migrate
 php artisan serve --host=0.0.0.0 --port=8000   # API
 php artisan reverb:start --host=0.0.0.0         # WebSocket
 ```
-
-**Appairer un appareil**
-```bash
-php artisan clipd:pair "MacBook" macos    # ou "Pixel" android
-```
-Copie le `device_id` et le `token` affichés (le token n'est montré qu'une fois).
 
 **Desktop**
 ```bash
@@ -64,7 +74,7 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-À la première ouverture, chaque client suit un onboarding : serveur, identifiant + token, puis **la même passphrase** sur tous les appareils.
+À la première ouverture, chaque client suit un onboarding : serveur, inscription/connexion, puis **la même passphrase** sur tous tes appareils (elle chiffre le contenu ; le serveur ne la voit jamais).
 
 ## Sécurité de la clé
 

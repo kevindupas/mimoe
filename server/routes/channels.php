@@ -1,9 +1,9 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Broadcast;
 
-// Canal prive unique (mono-utilisateur v1). Tout appareil authentifie
-// (device token, resolu par le middleware `device`) peut ecouter.
-Broadcast::channel('clips', function ($device) {
-    return $device !== null;
+// Canal privé par utilisateur : seuls les appareils du compte l'écoutent.
+Broadcast::channel('clips.{userId}', function (User $user, int $userId) {
+    return (int) $user->id === $userId;
 });

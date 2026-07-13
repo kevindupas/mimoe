@@ -35,6 +35,10 @@ class SecureStore(context: Context) {
         get() = prefs.getString("device_token", "") ?: ""
         set(v) = prefs.edit().putString("device_token", v).apply()
 
+    var userId: Long
+        get() = prefs.getLong("user_id", 0)
+        set(v) = prefs.edit().putLong("user_id", v).apply()
+
     var reverbAppKey: String
         get() = prefs.getString("reverb_app_key", "") ?: ""
         set(v) = prefs.edit().putString("reverb_app_key", v).apply()

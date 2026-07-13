@@ -1,0 +1,52 @@
+name: clipd
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-clipd}
+      POSTGRES_USER: ${DB_USERNAME:-clipd}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-clipd}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # API HTTP (POST /clip, auth, historique) + migrations au démarrage.
+  app:
+    build: .
+    restart: unless-stopped
+    command: sh -c "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  # WebSocket temps réel (broadcast des clips chiffrés).
+  reverb:
+    build: .
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+
+  # Purge TTL (toutes les minutes le scheduler déclenche clipd:purge).
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: sh -c "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    env_file: .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

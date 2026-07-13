@@ -16,8 +16,9 @@ const KC_ENCRYPTION_KEY: &str = "encryption_key";
 /// Config non-secrete, partagee avec le frontend (transport Reverb + appels HTTP).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-    pub server_url: String,   // ex: http://100.x.x.x:8899
-    pub device_id: String,    // uuid appareil (issu de clipd:pair)
+    pub server_url: String,   // ex: http://host:8000
+    pub device_id: String,    // uuid appareil (généré au 1er lancement)
+    pub user_id: i64,         // compte (pour le canal privé clips.{user_id})
     pub reverb_app_key: String,
     pub reverb_host: String,
     pub reverb_port: u16,

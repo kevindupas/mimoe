@@ -15,6 +15,7 @@ class Clip extends Model
 
     protected $fillable = [
         'id',
+        'user_id',
         'origin_device_id',
         'ciphertext',
         'nonce',

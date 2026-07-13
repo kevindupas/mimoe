@@ -19,14 +19,14 @@ class ClipReceived implements ShouldBroadcastNow
     }
 
     /**
-     * Canal prive unique (mono-utilisateur v1). Tous les appareils l'ecoutent.
+     * Canal privé par utilisateur : seuls les appareils de ce compte l'écoutent.
      *
      * @return array<int, Channel>
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('clips'),
+            new PrivateChannel('clips.'.$this->clip->user_id),
         ];
     }
 

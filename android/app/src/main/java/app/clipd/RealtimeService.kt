@@ -57,7 +57,7 @@ class RealtimeService : Service() {
 
         pusher = Pusher(store.reverbAppKey, options).also { p ->
             p.connect()
-            p.subscribePrivate("private-clips", object : PrivateChannelEventListener {
+            p.subscribePrivate("private-clips.${store.userId}", object : PrivateChannelEventListener {
                 override fun onEvent(event: PusherEvent) = handleEvent(event, store)
                 override fun onAuthenticationFailure(msg: String?, e: Exception?) {}
                 override fun onSubscriptionSucceeded(channel: String?) {}

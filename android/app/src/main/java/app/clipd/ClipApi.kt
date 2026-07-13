@@ -11,7 +11,7 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 
-data class ReverbConfig(val appKey: String, val port: Int)
+data class AuthResult(val token: String, val userId: Long, val reverbAppKey: String, val reverbPort: Int)
 data class RawClip(
     val id: String, val originDeviceId: String, val ciphertext: String,
     val nonce: String, val isSensitive: Boolean, val createdAt: String,
@@ -43,17 +43,28 @@ object ClipApi {
         client.newCall(req).execute().use { return it.isSuccessful }
     }
 
-    /** GET /api/config : valide le token + renvoie les params Reverb. Null si échec. */
-    fun fetchConfig(serverUrl: String, token: String): ReverbConfig? {
+    /** Inscription ou connexion. `path` = "register" | "login". Renvoie token + user + reverb. */
+    fun auth(serverUrl: String, path: String, email: String, password: String, deviceId: String): AuthResult {
+        val body = JSONObject().apply {
+            put("email", email); put("password", password)
+            put("device_id", deviceId); put("device_name", "Android"); put("platform", "android")
+        }.toString()
         val req = Request.Builder()
-            .url("$serverUrl/api/config")
-            .header("Authorization", "Bearer $token")
+            .url("$serverUrl/api/$path")
             .header("Accept", "application/json")
-            .get().build()
+            .post(body.toRequestBody(JSON))
+            .build()
         client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) return null
-            val o = JSONObject(resp.body?.string() ?: return null)
-            return ReverbConfig(o.getString("reverb_app_key"), o.optInt("reverb_port", 8080))
+            val txt = resp.body?.string().orEmpty()
+            if (!resp.isSuccessful) {
+                val msg = runCatching { JSONObject(txt).optString("message") }.getOrNull()
+                throw Exception(if (msg.isNullOrBlank()) "erreur ${resp.code}" else msg)
+            }
+            val o = JSONObject(txt)
+            return AuthResult(
+                o.getString("token"), o.getLong("user_id"),
+                o.getString("reverb_app_key"), o.optInt("reverb_port", 8080),
+            )
         }
     }
 

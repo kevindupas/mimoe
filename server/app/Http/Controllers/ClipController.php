@@ -10,13 +10,11 @@ use Illuminate\Support\Carbon;
 
 class ClipController extends Controller
 {
-    /**
-     * Historique recent (ciphertext + metadonnees). Sert au demarrage de l'app
-     * pour recharger l'historique. Le serveur ne dechiffre jamais.
-     */
-    public function index(): JsonResponse
+    /** Historique récent de l'utilisateur (ciphertext + métadonnées). */
+    public function index(Request $request): JsonResponse
     {
-        $clips = Clip::where('expires_at', '>', now())
+        $clips = Clip::where('user_id', $request->user()->id)
+            ->where('expires_at', '>', now())
             ->orderByDesc('created_at')
             ->limit(config('clipd.max_clips', 100))
             ->get();
@@ -24,11 +22,7 @@ class ClipController extends Controller
         return response()->json(['data' => $clips]);
     }
 
-    /**
-     * Ingestion d'un clip chiffre. Le serveur valide le format, fixe expires_at,
-     * stocke le ciphertext opaque, applique le cap, puis broadcast via Reverb.
-     * Il ne calcule RIEN sur le contenu (impossible, c'est chiffre).
-     */
+    /** Ingestion d'un clip chiffré. Le serveur ne calcule rien sur le contenu. */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -40,39 +34,35 @@ class ClipController extends Controller
             'created_at' => ['required', 'date'],
         ]);
 
-        // Idempotence : id genere client, on ignore un doublon (retry reseau).
-        if ($clip = Clip::find($data['id'])) {
+        $userId = $request->user()->id;
+
+        if ($clip = Clip::where('user_id', $userId)->find($data['id'])) {
             return response()->json(['data' => $clip], 200);
         }
 
-        $ttlHours = (int) config('clipd.ttl_hours', 24);
-
         $clip = Clip::create([
             'id' => $data['id'],
+            'user_id' => $userId,
             'origin_device_id' => $data['origin_device_id'],
             'ciphertext' => $data['ciphertext'],
             'nonce' => $data['nonce'],
             'is_sensitive' => $data['is_sensitive'] ?? false,
             'created_at' => Carbon::parse($data['created_at']),
-            'expires_at' => now()->addHours($ttlHours),
+            'expires_at' => now()->addHours((int) config('clipd.ttl_hours', 24)),
         ]);
 
-        $this->enforceMaxClips();
+        $this->enforceMaxClips($userId);
 
         broadcast(new ClipReceived($clip));
 
         return response()->json(['data' => $clip], 201);
     }
 
-    /**
-     * Cap dur : ne garde que les N clips les plus recents (TTL "ou 100 clips").
-     */
-    protected function enforceMaxClips(): void
+    /** Cap dur par utilisateur : garde les N clips les plus récents. */
+    protected function enforceMaxClips(int $userId): void
     {
         $max = (int) config('clipd.max_clips', 100);
-
-        $keepIds = Clip::orderByDesc('created_at')->limit($max)->pluck('id');
-
-        Clip::whereNotIn('id', $keepIds)->delete();
+        $keep = Clip::where('user_id', $userId)->orderByDesc('created_at')->limit($max)->pluck('id');
+        Clip::where('user_id', $userId)->whereNotIn('id', $keep)->delete();
     }
 }
