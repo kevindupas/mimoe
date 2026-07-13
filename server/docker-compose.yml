@@ -1,0 +1,57 @@
+name: mimoe
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-mimoe}
+      POSTGRES_USER: ${DB_USERNAME:-mimoe}
+      # No default value: without DB_PASSWORD in .env, the container refuses
+      # to start rather than run with a known "secret" password.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD missing in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-mimoe}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # HTTP API (POST /clip, auth, history) + migrations at startup.
+  app:
+    build: .
+    restart: unless-stopped
+    command: sh -c "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8000}:8000"
+    volumes:
+      # Firebase service account (FCM push). Drop the JSON on the Pi at this path.
+      - ./storage/app/firebase/service-account.json:/app/storage/app/firebase/service-account.json:ro
+
+  # Real-time WebSocket (broadcasts encrypted clips).
+  reverb:
+    build: .
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    env_file: .env
+    depends_on:
+      - db
+    ports:
+      - "${REVERB_BIND:-0.0.0.0}:${REVERB_HOST_PORT:-8080}:8080"
+
+  # TTL purge (every minute the scheduler triggers mimoe:purge).
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: sh -c "while true; do php artisan schedule:run --no-interaction; sleep 60; done"
+    env_file: .env
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
