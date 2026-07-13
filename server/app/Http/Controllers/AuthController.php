@@ -65,14 +65,19 @@ class AuthController extends Controller
 
         $token = $user->createToken($data['device_name'])->plainTextToken;
 
+        // Params Reverb pour les CLIENTS, dérivés de APP_URL (robuste derrière un proxy TLS).
+        $appUrl = (string) config('app.url');
+        $scheme = str_starts_with($appUrl, 'https') ? 'https' : 'http';
+        $host = parse_url($appUrl, PHP_URL_HOST) ?: request()->getHost();
+        $port = (int) env('REVERB_CLIENT_PORT', $scheme === 'https' ? 443 : 8080);
+
         return response()->json([
             'token' => $token,
             'user_id' => $user->id,
-            // Reverb est co-localisé avec l'API : le client le joint sur le même hôte.
             'reverb_app_key' => config('reverb.apps.apps.0.key'),
-            'reverb_host' => request()->getHost(),
-            'reverb_port' => (int) env('REVERB_CLIENT_PORT', config('reverb.servers.reverb.port', 8080)),
-            'reverb_scheme' => request()->secure() ? 'https' : 'http',
+            'reverb_host' => $host,
+            'reverb_port' => $port,
+            'reverb_scheme' => $scheme,
         ]);
     }
 }
