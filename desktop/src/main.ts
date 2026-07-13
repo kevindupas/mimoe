@@ -296,16 +296,31 @@ async function decryptRaw(raw: RawClip): Promise<Clip | null> {
   }
 }
 
+function setWsStatus(state: "connecting" | "connected" | "error") {
+  const dot = document.querySelector<HTMLSpanElement>("#ws-dot");
+  if (dot) { dot.className = `ws-dot ${state}`; dot.title = "WebSocket : " + state; }
+}
+
 function connectRealtime() {
   const c = config!;
   try { echo?.disconnect(); } catch {}
+  setWsStatus("connecting");
   echo = new Echo({
-    broadcaster: "reverb", key: c.reverb_app_key,
+    broadcaster: "reverb",
+    Pusher, // passe le constructeur explicitement (robuste vs window.Pusher)
+    key: c.reverb_app_key,
     wsHost: c.reverb_host, wsPort: c.reverb_port, wssPort: c.reverb_port,
     forceTLS: c.reverb_scheme === "https", enabledTransports: ["ws", "wss"],
     authEndpoint: `${c.server_url}/broadcasting/auth`,
     auth: { headers: { Authorization: `Bearer ${c.device_token}`, Accept: "application/json" } },
   });
+
+  const conn = echo.connector?.pusher?.connection;
+  conn?.bind("connected", () => setWsStatus("connected"));
+  conn?.bind("error", (e: any) => { console.error("ws error", e); setWsStatus("error"); });
+  conn?.bind("unavailable", () => setWsStatus("error"));
+  conn?.bind("disconnected", () => setWsStatus("connecting"));
+
   echo.private(`clips.${c.user_id}`).listen(".clip.received", async (raw: RawClip) => {
     if (raw.origin_device_id === c.device_id) return;
     if (clips.some((x) => x.id === raw.id)) return;
@@ -334,6 +349,7 @@ function renderHistory() {
         <span class="hint"><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
         <span class="hint"><kbd>↵</kbd> copier</span>
         <span class="hint"><kbd>esc</kbd> fermer</span>
+        <span class="hint" style="margin-left:auto"><span id="ws-dot" class="ws-dot connecting"></span></span>
       </footer>
     </div>`;
   const s = document.querySelector<HTMLInputElement>("#search")!;

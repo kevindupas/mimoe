@@ -93,6 +93,10 @@ kbd {
   display: inline-grid; place-items: center; background: var(--kbd);
   border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim);
 }
+.ws-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ws-dot.connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.ws-dot.connecting { background: #eab308; }
+.ws-dot.error { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
 
 /* --- Empty --- */
 .empty { margin: auto; text-align: center; color: var(--text-faint); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 20px; }
