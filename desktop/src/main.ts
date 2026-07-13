@@ -424,11 +424,11 @@ async function commitSelected() {
   if (clip.kind === "image" && clip.imageB64) {
     await invoke("copy_image", { pngB64: clip.imageB64 });
     showToast("Image copiée");
-    // Image : on ne ferme PAS.
   } else {
     await invoke("copy_to_clipboard", { text: clip.text });
-    setTimeout(() => invoke("hide_window"), reduceMotion ? 0 : 160);
+    showToast("Copié");
   }
+  // On ne ferme JAMAIS la fenêtre sur copie.
 }
 
 function showToast(msg: string) {
