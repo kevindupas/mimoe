@@ -270,6 +270,17 @@ pub fn run() {
             // Surveillance du presse-papier (emission). Idle tant que non configure.
             clipboard::start_monitor(app.handle().clone());
 
+            // Fermer la fenetre = la masquer (app menu bar), pas quitter.
+            if let Some(w) = app.get_webview_window("main") {
+                let wc = w.clone();
+                w.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = wc.hide();
+                    }
+                });
+            }
+
             // Icone menu bar avec menu clic-droit.
             let quit = MenuItem::with_id(app, "quit", "Quitter Clipd", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Ouvrir l'historique", true, None::<&str>)?;
