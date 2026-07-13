@@ -1,3 +1,6 @@
 # Ne versionner que les README parmi les .md
 *.md
 !README.md
+
+# Config Claude locale, jamais versionnée
+.claude/
