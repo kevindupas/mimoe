@@ -8,7 +8,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { postBlob, postClip } from "./src/api";
 import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
-import { setupNotifications } from "./src/notify";
+import { loadNotifPref, setupNotifications } from "./src/notify";
 import Home from "./src/screens/Home";
 import Onboarding from "./src/screens/Onboarding";
 import Settings from "./src/screens/Settings";
@@ -31,7 +31,7 @@ export default function App() {
     return c;
   }
 
-  useEffect(() => { setupNotifications(); refresh(); }, []);
+  useEffect(() => { setupNotifications(); loadNotifPref(); refresh(); }, []);
 
   // Partage entrant : texte ou image -> chiffre + envoie.
   useEffect(() => {
