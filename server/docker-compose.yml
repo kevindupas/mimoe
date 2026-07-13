@@ -27,6 +27,9 @@ services:
         condition: service_healthy
     ports:
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8000}:8000"
+    volumes:
+      # Service account Firebase (push FCM). Depose le JSON sur le Pi a ce chemin.
+      - ./storage/app/firebase/service-account.json:/app/storage/app/firebase/service-account.json:ro
 
   # WebSocket temps réel (broadcast des clips chiffrés).
   reverb:

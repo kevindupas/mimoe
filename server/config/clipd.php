@@ -5,5 +5,5 @@ return [
     'ttl_hours' => (int) env('CLIPD_TTL_HOURS', 24),
 
     // Cap dur : nombre max de clips conserves (le premier atteint entre TTL et cap gagne).
-    'max_clips' => (int) env('CLIPD_MAX_CLIPS', 100),
+    'max_clips' => (int) env('CLIPD_MAX_CLIPS', 50),
 ];

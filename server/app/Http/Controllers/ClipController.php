@@ -59,14 +59,33 @@ class ClipController extends Controller
 
         broadcast(new ClipReceived($clip));
 
+        // Push natif (app tuee) : ne doit JAMAIS casser l'enregistrement du clip.
+        try {
+            app(\App\Services\PushService::class)->notifyOtherDevices($clip);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return response()->json(['data' => $clip], 201);
     }
 
-    /** Cap dur par utilisateur : garde les N clips les plus récents. */
+    /** Cap dur par utilisateur : garde les N clips récents. Supprime le reste
+     * (+ leurs blobs) et prévient les clients pour qu'ils retirent ces ids live. */
     protected function enforceMaxClips(int $userId): void
     {
-        $max = (int) config('clipd.max_clips', 100);
+        $max = (int) config('clipd.max_clips', 50);
         $keep = Clip::where('user_id', $userId)->orderByDesc('created_at')->limit($max)->pluck('id');
-        Clip::where('user_id', $userId)->whereNotIn('id', $keep)->delete();
+        $stale = Clip::where('user_id', $userId)->whereNotIn('id', $keep)->get(['id', 'blob_id']);
+        if ($stale->isEmpty()) {
+            return;
+        }
+        $ids = $stale->pluck('id')->all();
+        $blobIds = $stale->pluck('blob_id')->filter()->all();
+
+        Clip::whereIn('id', $ids)->delete();
+        if ($blobIds) {
+            \App\Models\Blob::whereIn('id', $blobIds)->delete();
+        }
+        broadcast(new \App\Events\ClipsDeleted($userId, $ids));
     }
 }

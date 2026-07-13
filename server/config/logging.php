@@ -82,6 +82,17 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Error tracking pauvre-mais-efficace : les erreurs partent dans un salon Discord.
+        // Discord accepte le format Slack -> ajoute "/slack" à la fin de l'URL du webhook.
+        'discord' => [
+            'driver' => 'slack',
+            'url' => env('DISCORD_WEBHOOK_URL'),
+            'username' => 'Clipd',
+            'emoji' => ':rotating_light:',
+            'level' => 'error', // erreurs + critical seulement, pas le bruit
+            'replace_placeholders' => true,
+        ],
+
         'papertrail' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
