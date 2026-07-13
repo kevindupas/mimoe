@@ -1,6 +1,7 @@
 // Crypto E2E, interop STRICTE avec Rust (desktop) et Kotlin (ancien Android) :
 // Argon2id (même sel + params) -> clé AES-256 -> AES-256-GCM.
 import { gcm } from "@noble/ciphers/aes.js";
+import { bytesToUtf8, utf8ToBytes } from "@noble/ciphers/utils.js";
 import * as Crypto from "expo-crypto";
 import argon2 from "react-native-argon2";
 
@@ -39,8 +40,6 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-const enc = new TextEncoder();
-const dec = new TextDecoder();
 
 /** Dérive la clé AES-256 (32 octets) via Argon2id. Params identiques Rust/Kotlin. */
 export async function deriveKey(passphrase: string): Promise<Uint8Array> {
@@ -57,7 +56,7 @@ export async function deriveKey(passphrase: string): Promise<Uint8Array> {
 /** Chiffre. Retourne (ciphertext, nonce) en base64. Nonce 12 octets aléatoire. */
 export function encrypt(key: Uint8Array, plaintext: string): { ciphertext: string; nonce: string } {
   const nonce = Crypto.getRandomBytes(12);
-  const ct = gcm(key, nonce).encrypt(enc.encode(plaintext)); // ct||tag
+  const ct = gcm(key, nonce).encrypt(utf8ToBytes(plaintext)); // ct||tag
   return { ciphertext: bytesToBase64(ct), nonce: bytesToBase64(nonce) };
 }
 
@@ -65,7 +64,7 @@ export function encrypt(key: Uint8Array, plaintext: string): { ciphertext: strin
 export function decrypt(key: Uint8Array, ciphertextB64: string, nonceB64: string): string {
   const ct = base64ToBytes(ciphertextB64);
   const nonce = base64ToBytes(nonceB64);
-  return dec.decode(gcm(key, nonce).decrypt(ct));
+  return bytesToUtf8(gcm(key, nonce).decrypt(ct));
 }
 
 /** Chiffre des octets bruts (image). Retourne (ciphertext, nonce) en base64. */

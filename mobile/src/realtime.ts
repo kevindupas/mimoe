@@ -1,10 +1,14 @@
 // Connexion WebSocket temps réel (Reverb = protocole Pusher).
-import Pusher from "pusher-js";
+// Le build react-native de pusher-js exporte la classe en nommé (module.exports.Pusher),
+// pas en default -> on prend l'un ou l'autre selon le bundle.
+import PusherDefault from "pusher-js";
+import type { RawClip } from "./api";
 import type { Config } from "./store";
 import { reverbHost, reverbTls } from "./store";
-import type { RawClip } from "./api";
 
-export function connect(cfg: Config, onClip: (raw: RawClip) => void): Pusher {
+const Pusher: any = (PusherDefault as any).Pusher ?? PusherDefault;
+
+export function connect(cfg: Config, onClip: (raw: RawClip) => void): any {
   const host = reverbHost(cfg.serverUrl);
   const tls = reverbTls(cfg.serverUrl);
   const pusher = new Pusher(cfg.reverbAppKey, {
