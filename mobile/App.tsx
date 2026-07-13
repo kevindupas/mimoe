@@ -44,7 +44,13 @@ export default function App() {
       try {
         const img = (shareIntent?.files ?? []).find((f: any) => f.mimeType?.startsWith("image/"));
         if (img?.path) {
-          const b64 = await FileSystem.readAsStringAsync(img.path, { encoding: "base64" });
+          let uri: string = img.path;
+          if (uri.startsWith("content://")) {
+            const dest = `${FileSystem.cacheDirectory}share_${Date.now()}.img`;
+            await FileSystem.copyAsync({ from: uri, to: dest });
+            uri = dest;
+          }
+          const b64 = await FileSystem.readAsStringAsync(uri, { encoding: "base64" });
           const blob = encryptBytes(key, base64ToBytes(b64));
           const blobId = await postBlob(c.serverUrl, c.deviceToken, blob.ciphertext, blob.nonce);
           const cap = encrypt(key, "Image");
