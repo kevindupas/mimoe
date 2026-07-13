@@ -396,7 +396,32 @@ function renderList(freshId?: string) {
     el.addEventListener("click", () => { selected = i; commitSelected(); });
     el.addEventListener("mousemove", () => { if (selected !== i) { selected = i; paintSelection(); } });
   });
+  list.querySelectorAll<HTMLButtonElement>(".card-del").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.stopPropagation(); removeClip(btn.dataset.del!); });
+  });
   paintSelection();
+}
+
+// Supprime un clip : retire local direct (optimiste) + DELETE serveur. Le broadcast
+// clips.deleted revient et retire aussi les autres appareils (idempotent ici).
+async function removeClip(id: string) {
+  clips = clips.filter((c) => c.id !== id);
+  renderList();
+  try {
+    const res = await fetch(`${config!.server_url}/api/clip/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${config!.device_token}`, Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`${res.status}`);
+  } catch (e) {
+    console.error("delete clip", e);
+    loadHistory(); // resync si l'appel a échoué
+  }
+}
+
+function deleteSelected() {
+  const clip = filtered[selected];
+  if (clip) removeClip(clip.id);
 }
 
 function cardHtml(c: Clip, i: number, fresh: boolean): string {
@@ -410,6 +435,7 @@ function cardHtml(c: Clip, i: number, fresh: boolean): string {
     : `<div class="card-text">${escapeHtml(c.text.length > 200 ? c.text.slice(0, 200) + "…" : c.text)}</div>`;
   return `
     <div class="card${fresh ? " fresh" : ""}" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
+      <button class="card-del" data-del="${c.id}" title="Supprimer (⌘⌫)" aria-label="Supprimer">✕</button>
       ${body}
       <div class="card-meta">${src}${badge}<span class="time">${relativeTime(c.created_at)}</span></div>
     </div>`;
@@ -557,6 +583,9 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "," && (e.metaKey || e.ctrlKey)) {
     e.preventDefault();
     renderSettings();
+  } else if (e.key === "Backspace" && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault();
+    deleteSelected();
   }
 });
 

@@ -91,6 +91,9 @@ pub fn start_monitor(app: AppHandle) {
     thread::spawn(move || {
         // On part du changeCount actuel : on n'emet pas le contenu pre-existant au lancement.
         let mut last_count = current_change_count();
+        // Anti-doublon : hash du dernier contenu emis. Recopier le meme texte/image
+        // (changeCount incremente mais contenu identique) n'envoie qu'une fois.
+        let mut last_emitted: Option<String> = None;
 
         loop {
             thread::sleep(Duration::from_millis(POLL_MS));
@@ -118,8 +121,13 @@ pub fn start_monitor(app: AppHandle) {
                 if consume_written(&app, &hash) {
                     continue;
                 }
+                if last_emitted.as_deref() == Some(hash.as_str()) {
+                    continue; // meme contenu recopie -> pas de doublon
+                }
                 if let Err(e) = emit_clip(&app, &text) {
                     eprintln!("[clipd] emission texte echouee: {e}");
+                } else {
+                    last_emitted = Some(hash);
                 }
                 continue;
             }
@@ -129,8 +137,13 @@ pub fn start_monitor(app: AppHandle) {
                 if consume_written(&app, &hash) {
                     continue;
                 }
+                if last_emitted.as_deref() == Some(hash.as_str()) {
+                    continue;
+                }
                 if let Err(e) = emit_image(&app, &png) {
                     eprintln!("[clipd] emission image echouee: {e}");
+                } else {
+                    last_emitted = Some(hash);
                 }
             }
         }
