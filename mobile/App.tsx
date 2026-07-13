@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useShareIntent } from "expo-share-intent";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Text, ToastAndroid, useColorScheme, View } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { postClip } from "./src/api";
 import { encrypt } from "./src/crypto";
@@ -56,6 +57,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <KeyboardProvider>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <View style={{ flex: 1, backgroundColor: p.bg }}>
         {screen === "onboarding" && <Onboarding p={p} onDone={refresh} />}
@@ -73,6 +75,7 @@ export default function App() {
           </View>
         )}
       </View>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
