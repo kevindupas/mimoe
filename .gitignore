@@ -1,0 +1,37 @@
+# --- Exclusions demandées ---
+docs/
+project.md
+.claude/
+
+# --- OS ---
+.DS_Store
+*.swp
+
+# --- Node ---
+node_modules/
+desktop/dist/
+
+# --- Rust / Tauri ---
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# --- Laravel (le server/.gitignore couvre le reste : .env, vendor, storage) ---
+server/vendor/
+server/node_modules/
+server/.env
+server/public/build/
+
+# --- Android ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/google-services.json
+android/app/release/
+android/captures/
+*.keystore
+*.jks
+
+# --- Secrets divers ---
+*.pem
+.env.local
