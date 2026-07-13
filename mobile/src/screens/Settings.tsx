@@ -5,17 +5,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Palette } from "../theme";
 import type { Config } from "../store";
 
-export default function Settings({ p, cfg, onBack, onUnpair }: {
-  p: Palette; cfg: Config; onBack: () => void; onUnpair: () => void;
+export default function Settings({ p, cfg, onUnpair }: {
+  p: Palette; cfg: Config; onUnpair: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = styles(p);
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={s.header}>
-        <Pressable onPress={onBack} hitSlop={10}><Ionicons name="chevron-back" size={24} color={p.text} /></Pressable>
         <Text style={s.title}>Réglages</Text>
-        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20, gap: 18 }}>
