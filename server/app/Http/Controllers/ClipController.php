@@ -28,6 +28,8 @@ class ClipController extends Controller
         $data = $request->validate([
             'id' => ['required', 'uuid'],
             'origin_device_id' => ['required', 'uuid'],
+            'kind' => ['sometimes', 'in:text,image'],
+            'blob_id' => ['nullable', 'uuid'],
             'ciphertext' => ['required', 'string'],
             'nonce' => ['required', 'string'],
             'is_sensitive' => ['sometimes', 'boolean'],
@@ -43,6 +45,8 @@ class ClipController extends Controller
         $clip = Clip::create([
             'id' => $data['id'],
             'user_id' => $userId,
+            'kind' => $data['kind'] ?? 'text',
+            'blob_id' => $data['blob_id'] ?? null,
             'origin_device_id' => $data['origin_device_id'],
             'ciphertext' => $data['ciphertext'],
             'nonce' => $data['nonce'],

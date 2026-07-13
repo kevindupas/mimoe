@@ -13,9 +13,10 @@ class PurgeExpiredClips extends Command
 {
     public function handle(): int
     {
-        $deleted = Clip::where('expires_at', '<=', now())->delete();
+        $clips = Clip::where('expires_at', '<=', now())->delete();
+        $blobs = \App\Models\Blob::where('expires_at', '<=', now())->delete();
 
-        $this->info("Purged {$deleted} expired clip(s).");
+        $this->info("Purged {$clips} clip(s) and {$blobs} blob(s).");
 
         return self::SUCCESS;
     }

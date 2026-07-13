@@ -46,6 +46,8 @@ class ClipReceived implements ShouldBroadcastNow
         return [
             'id' => $this->clip->id,
             'origin_device_id' => $this->clip->origin_device_id,
+            'kind' => $this->clip->kind,
+            'blob_id' => $this->clip->blob_id,
             'ciphertext' => $this->clip->ciphertext,
             'nonce' => $this->clip->nonce,
             'is_sensitive' => $this->clip->is_sensitive,
