@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Limites pour les blobs images (uploads chiffrés en base64)
 RUN { \
-    echo "post_max_size=25M"; \
-    echo "upload_max_filesize=25M"; \
-    echo "memory_limit=256M"; \
+    echo "post_max_size=100M"; \
+    echo "upload_max_filesize=100M"; \
+    echo "memory_limit=512M"; \
   } > /usr/local/etc/php/conf.d/clipd.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
