@@ -86,6 +86,15 @@ export async function fetchBlob(serverUrl: string, token: string, id: string): P
   return res.json();
 }
 
+/** Supprime un clip (et son blob) cote serveur. Le broadcast retire les autres appareils. */
+export async function deleteClip(serverUrl: string, token: string, id: string): Promise<void> {
+  const res = await fetch(`${serverUrl}/api/clip/${id}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`DELETE /clip ${res.status}`);
+}
+
 /** Enregistre le token push natif (FCM) de cet appareil aupres du serveur. */
 export async function registerPushToken(
   serverUrl: string,

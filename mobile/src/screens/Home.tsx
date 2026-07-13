@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getClipImageBase64, getClipImageUri } from "../imageCache";
 import type { Config } from "../store";
@@ -23,11 +23,18 @@ function ClipImage({ cfg, clipId, blobId, style, tint }: {
   return <Image source={{ uri }} style={style} resizeMode="contain" />;
 }
 
-export default function Home({ p, cfg, clips, refreshing, onRefresh }: {
-  p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
+export default function Home({ p, cfg, clips, refreshing, onRefresh, onDelete }: {
+  p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void; onDelete: (id: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = styles(p);
+
+  function confirmDelete(c: Clip) {
+    Alert.alert("Supprimer ?", "Ce clip sera retiré de tous tes appareils.", [
+      { text: "Annuler", style: "cancel" },
+      { text: "Supprimer", style: "destructive", onPress: () => onDelete(c.id) },
+    ]);
+  }
 
   async function copyClip(c: Clip) {
     if (c.kind === "image" && c.blobId) {
@@ -63,7 +70,7 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh }: {
           </View>
         }
         renderItem={({ item }) => (
-          <Pressable style={s.card} onPress={() => copyClip(item)}>
+          <Pressable style={s.card} onPress={() => copyClip(item)} onLongPress={() => confirmDelete(item)} delayLongPress={350}>
             {item.kind === "image" && item.blobId ? (
               <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
             ) : (

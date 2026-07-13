@@ -2,11 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system/legacy";
 import { StatusBar } from "expo-status-bar";
 import { useShareIntent } from "expo-share-intent";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid, useColorScheme, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { postBlob, postClip, registerPushToken } from "./src/api";
+import { deleteClip, postBlob, postClip, registerPushToken } from "./src/api";
 import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
 import { getFcmToken, loadNotifPref, setupNotifications } from "./src/notify";
 import Home from "./src/screens/Home";
@@ -23,6 +23,7 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [sharing, setSharing] = useState(false);
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+  const shareGuard = useRef<{ sig: string; at: number }>({ sig: "", at: 0 });
 
   async function refresh() {
     const c = await loadConfig();
@@ -47,6 +48,15 @@ export default function App() {
   // Partage entrant : texte ou image -> chiffre + envoie.
   useEffect(() => {
     if (!hasShareIntent) return;
+    // Garde anti double-envoi : expo-share-intent (Android) livre parfois le MEME
+    // intent 2x. On ignore un intent identique reçu dans les 4s -> plus de doublon.
+    const sig = JSON.stringify({ t: shareIntent?.text ?? "", f: (shareIntent?.files ?? []).map((x: any) => x.path) });
+    const now = Date.now();
+    if (sig === shareGuard.current.sig && now - shareGuard.current.at < 4000) {
+      resetShareIntent();
+      return;
+    }
+    shareGuard.current = { sig, at: now };
     (async () => {
       const c = cfg ?? (await refresh());
       const key = c ? await getKey() : null;
@@ -114,12 +124,18 @@ export default function App() {
 
 function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () => void }) {
   const [tab, setTab] = useState<"home" | "settings">("home");
-  const { clips, refreshing, refresh } = useClips(cfg);
+  const { clips, refreshing, refresh, remove } = useClips(cfg);
+
+  const onDelete = async (id: string) => {
+    remove([id]); // optimiste : retire tout de suite
+    try { await deleteClip(cfg.serverUrl, cfg.deviceToken, id); } catch { refresh(); }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {tab === "home"
-          ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh} />
+          ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh} onDelete={onDelete} />
           : <Settings p={p} cfg={cfg} onUnpair={onUnpair} />}
       </View>
       <BottomBar p={p} tab={tab} onTab={setTab} />

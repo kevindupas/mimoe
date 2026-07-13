@@ -67,6 +67,17 @@ export function useClips(cfg: Config) {
     setRefreshing(false);
   }
 
+  // Retire des clips de la liste + cache + purge leurs images. Utilisé par la
+  // suppression manuelle (optimiste) ET par le broadcast serveur (cap/TTL/delete).
+  function removeLocal(ids: string[]) {
+    const gone = new Set(ids);
+    setClips((cur) => cur.filter((c) => !gone.has(c.id)));
+    const next = rawsRef.current.filter((r) => !gone.has(r.id));
+    rawsRef.current = next;
+    saveClipCache(next);
+    pruneImageCache(next.filter((r) => r.kind === "image").map((r) => r.id));
+  }
+
   useEffect(() => {
     let alive = true;
 
@@ -84,15 +95,8 @@ export function useClips(cfg: Config) {
       notifyClip(clip.kind, clip.text);
     };
 
-    // Clips supprimés côté serveur (cap/TTL) : retire-les de la liste + cache, live.
-    const onDeleted = (ids: string[]) => {
-      const gone = new Set(ids);
-      setClips((cur) => cur.filter((c) => !gone.has(c.id)));
-      const next = rawsRef.current.filter((r) => !gone.has(r.id));
-      rawsRef.current = next;
-      saveClipCache(next);
-      pruneImageCache(next.filter((r) => r.kind === "image").map((r) => r.id));
-    };
+    // Clips supprimés côté serveur (cap/TTL/suppression manuelle) : retire-les live.
+    const onDeleted = (ids: string[]) => removeLocal(ids);
 
     // 1) Paint INSTANT depuis le cache (déchiffrement local rapide), avant tout réseau.
     (async () => {
@@ -126,5 +130,5 @@ export function useClips(cfg: Config) {
     };
   }, [cfg.serverUrl, cfg.deviceToken]);
 
-  return { clips, refreshing, refresh };
+  return { clips, refreshing, refresh, remove: removeLocal };
 }
