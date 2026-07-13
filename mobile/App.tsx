@@ -6,9 +6,9 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid, useColorScheme, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { postBlob, postClip } from "./src/api";
+import { postBlob, postClip, registerPushToken } from "./src/api";
 import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
-import { loadNotifPref, setupNotifications } from "./src/notify";
+import { getFcmToken, loadNotifPref, setupNotifications } from "./src/notify";
 import Home from "./src/screens/Home";
 import Onboarding from "./src/screens/Onboarding";
 import Settings from "./src/screens/Settings";
@@ -32,6 +32,17 @@ export default function App() {
   }
 
   useEffect(() => { setupNotifications(); loadNotifPref(); refresh(); }, []);
+
+  // Enregistre le token push FCM des que la config est prete -> le serveur peut
+  // reveiller cet appareil meme app tuee. Best-effort : un echec ne casse rien.
+  useEffect(() => {
+    if (!cfg) return;
+    (async () => {
+      const fcm = await getFcmToken();
+      if (!fcm) return;
+      try { await registerPushToken(cfg.serverUrl, cfg.deviceToken, cfg.deviceId, fcm); } catch {}
+    })();
+  }, [cfg?.deviceId, cfg?.serverUrl]);
 
   // Partage entrant : texte ou image -> chiffre + envoie.
   useEffect(() => {
@@ -108,7 +119,7 @@ function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () =
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {tab === "home"
-          ? <Home p={p} clips={clips} refreshing={refreshing} onRefresh={refresh} />
+          ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh} />
           : <Settings p={p} cfg={cfg} onUnpair={onUnpair} />}
       </View>
       <BottomBar p={p} tab={tab} onTab={setTab} />

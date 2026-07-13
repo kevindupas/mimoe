@@ -1,20 +1,42 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import React from "react";
-import { FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getClipImageBase64, getClipImageUri } from "../imageCache";
+import type { Config } from "../store";
 import type { Palette } from "../theme";
 import type { Clip } from "../useClips";
 
-export default function Home({ p, clips, refreshing, onRefresh }: {
-  p: Palette; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
+// Image chargée à la demande (quand la card est rendue), depuis le cache disque.
+// La liste s'affiche instantanément ; chaque image apparaît quand elle est prête.
+function ClipImage({ cfg, clipId, blobId, style, tint }: {
+  cfg: Config; clipId: string; blobId: string; style: any; tint: string;
+}) {
+  const [uri, setUri] = useState<string | null>(null);
+  useEffect(() => {
+    let ok = true;
+    getClipImageUri(cfg, clipId, blobId).then((u) => { if (ok) setUri(u); });
+    return () => { ok = false; };
+  }, [clipId, blobId]);
+  if (!uri) return <View style={[style, { alignItems: "center", justifyContent: "center" }]}><ActivityIndicator color={tint} /></View>;
+  return <Image source={{ uri }} style={style} resizeMode="contain" />;
+}
+
+export default function Home({ p, cfg, clips, refreshing, onRefresh }: {
+  p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = styles(p);
 
   async function copyClip(c: Clip) {
-    if (c.kind === "image" && c.imageB64) await Clipboard.setImageAsync(c.imageB64);
-    else await Clipboard.setStringAsync(c.text);
+    if (c.kind === "image" && c.blobId) {
+      const b64 = await getClipImageBase64(cfg, c.id, c.blobId);
+      if (b64) await Clipboard.setImageAsync(b64);
+      else { if (Platform.OS === "android") ToastAndroid.show("Image pas encore prête", ToastAndroid.SHORT); return; }
+    } else {
+      await Clipboard.setStringAsync(c.text);
+    }
     if (Platform.OS === "android") ToastAndroid.show("Copié", ToastAndroid.SHORT);
   }
 
@@ -27,6 +49,10 @@ export default function Home({ p, clips, refreshing, onRefresh }: {
       <FlatList
         data={clips}
         keyExtractor={(c) => c.id}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
         contentContainerStyle={{ padding: 12, paddingBottom: 12, flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} tintColor={p.accent} onRefresh={onRefresh} />}
         ListEmptyComponent={
@@ -38,8 +64,8 @@ export default function Home({ p, clips, refreshing, onRefresh }: {
         }
         renderItem={({ item }) => (
           <Pressable style={s.card} onPress={() => copyClip(item)}>
-            {item.kind === "image" && item.imageB64 ? (
-              <Image source={{ uri: `data:image/png;base64,${item.imageB64}` }} style={s.cardImg} resizeMode="contain" />
+            {item.kind === "image" && item.blobId ? (
+              <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
             ) : (
               <Text style={s.cardText} numberOfLines={4}>{item.text}</Text>
             )}

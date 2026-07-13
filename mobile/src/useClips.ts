@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchBlob, fetchHistory, type RawClip } from "./api";
-import { bytesToBase64, decrypt, decryptBytes } from "./crypto";
+import { AppState } from "react-native";
+import { fetchHistory, type RawClip } from "./api";
+import { loadClipCache, saveClipCache } from "./clipCache";
+import { decrypt } from "./crypto";
+import { pruneImageCache } from "./imageCache";
 import { notifyClip } from "./notify";
 import { connect } from "./realtime";
 import { getKey, type Config } from "./store";
@@ -9,7 +12,7 @@ export interface Clip {
   id: string;
   kind: "text" | "image";
   text: string;
-  imageB64?: string;
+  blobId?: string; // image : chargée à la demande (lazy) via imageCache, pas ici
   origin: string;
   sensitive: boolean;
   createdAt: string;
@@ -21,22 +24,31 @@ export function useClips(cfg: Config) {
   const [clips, setClips] = useState<Clip[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const keyRef = useRef<Uint8Array | null>(null);
+  const rawsRef = useRef<RawClip[]>([]); // dernier jeu de clips chiffrés (pour le cache)
 
-  async function toClip(r: RawClip, key: Uint8Array): Promise<Clip | null> {
+  // Déchiffrement SYNC (juste AES, pas de réseau) -> paint instant. Images en lazy.
+  function toClip(r: RawClip, key: Uint8Array): Clip | null {
     try {
       const text = decrypt(key, r.ciphertext, r.nonce);
-      let imageB64: string | undefined;
       const isImage = r.kind === "image" && !!r.blob_id;
-      if (isImage) {
-        const blob = await fetchBlob(cfg.serverUrl, cfg.deviceToken, r.blob_id!);
-        imageB64 = bytesToBase64(decryptBytes(key, blob.data, blob.nonce));
-      }
       return {
-        id: r.id, kind: isImage ? "image" : "text", text, imageB64,
-        origin: r.origin_device_id, sensitive: r.is_sensitive,
-        createdAt: r.created_at, mine: r.origin_device_id === cfg.deviceId,
+        id: r.id,
+        kind: isImage ? "image" : "text",
+        text,
+        blobId: isImage ? r.blob_id! : undefined,
+        origin: r.origin_device_id,
+        sensitive: r.is_sensitive,
+        createdAt: r.created_at,
+        mine: r.origin_device_id === cfg.deviceId,
       };
-    } catch { return null; }
+    } catch {
+      return null;
+    }
+  }
+
+  function renderFrom(raws: RawClip[], key: Uint8Array) {
+    rawsRef.current = raws;
+    setClips(raws.map((r) => toClip(r, key)).filter((c): c is Clip => c !== null));
   }
 
   async function load() {
@@ -44,9 +56,9 @@ export function useClips(cfg: Config) {
     keyRef.current = key;
     if (!key) return;
     const raws = await fetchHistory(cfg.serverUrl, cfg.deviceToken);
-    const list: Clip[] = [];
-    for (const r of raws) { const c = await toClip(r, key); if (c) list.push(c); }
-    setClips(list);
+    renderFrom(raws, key);
+    saveClipCache(raws);
+    pruneImageCache(raws.filter((r) => r.kind === "image").map((r) => r.id));
   }
 
   async function refresh() {
@@ -56,17 +68,62 @@ export function useClips(cfg: Config) {
   }
 
   useEffect(() => {
-    load();
-    const pusher = connect(cfg, async (raw: RawClip) => {
+    let alive = true;
+
+    const onClip = async (raw: RawClip) => {
       const key = keyRef.current ?? (await getKey());
       keyRef.current = key;
       if (!key) return;
-      const clip = await toClip(raw, key);
+      const clip = toClip(raw, key);
       if (!clip) return;
       setClips((cur) => (cur.some((c) => c.id === clip.id) ? cur : [clip, ...cur]));
+      // maj cache : prepend + dédup + cap
+      const next = [raw, ...rawsRef.current.filter((r) => r.id !== raw.id)].slice(0, 50);
+      rawsRef.current = next;
+      saveClipCache(next);
       notifyClip(clip.kind, clip.text);
+    };
+
+    // Clips supprimés côté serveur (cap/TTL) : retire-les de la liste + cache, live.
+    const onDeleted = (ids: string[]) => {
+      const gone = new Set(ids);
+      setClips((cur) => cur.filter((c) => !gone.has(c.id)));
+      const next = rawsRef.current.filter((r) => !gone.has(r.id));
+      rawsRef.current = next;
+      saveClipCache(next);
+      pruneImageCache(next.filter((r) => r.kind === "image").map((r) => r.id));
+    };
+
+    // 1) Paint INSTANT depuis le cache (déchiffrement local rapide), avant tout réseau.
+    (async () => {
+      const key = keyRef.current ?? (await getKey());
+      keyRef.current = key;
+      if (key && alive) {
+        const cached = await loadClipCache();
+        if (cached.length && alive) renderFrom(cached, key);
+      }
+      if (alive) load(); // 2) puis refresh serveur en fond
+    })();
+
+    const pusherRef = { current: connect(cfg, onClip, onDeleted) as any };
+
+    // Android/iOS suspendent le WS en arrière-plan. Au retour au premier plan :
+    // reconnecte si mort + resync l'historique.
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return;
+      const st = pusherRef.current?.connection?.state;
+      if (st !== "connected") {
+        try { pusherRef.current?.disconnect(); } catch {}
+        pusherRef.current = connect(cfg, onClip, onDeleted);
+      }
+      load();
     });
-    return () => pusher.disconnect();
+
+    return () => {
+      alive = false;
+      sub.remove();
+      pusherRef.current?.disconnect();
+    };
   }, [cfg.serverUrl, cfg.deviceToken]);
 
   return { clips, refreshing, refresh };

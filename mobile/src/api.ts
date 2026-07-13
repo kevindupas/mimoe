@@ -86,6 +86,21 @@ export async function fetchBlob(serverUrl: string, token: string, id: string): P
   return res.json();
 }
 
+/** Enregistre le token push natif (FCM) de cet appareil aupres du serveur. */
+export async function registerPushToken(
+  serverUrl: string,
+  token: string,
+  deviceId: string,
+  fcmToken: string,
+): Promise<void> {
+  const res = await fetch(`${serverUrl}/api/push-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ device_id: deviceId, token: fcmToken, platform: "android" }),
+  });
+  if (!res.ok) throw new Error(`POST /push-token ${res.status}`);
+}
+
 export async function fetchHistory(serverUrl: string, token: string): Promise<RawClip[]> {
   const res = await fetch(`${serverUrl}/api/clips`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
