@@ -127,6 +127,62 @@ fn copy_to_clipboard(state: State<AppState>, text: String) -> Result<(), String>
     Ok(())
 }
 
+/// Telecharge un blob image, le dechiffre, renvoie le PNG en base64 (pour <img>).
+#[tauri::command]
+fn fetch_image(state: State<AppState>, blob_id: String) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine};
+    let cfg = store::load_config().ok_or("non configure")?;
+    let token = store::get_device_token()?;
+    let key = { *state.key.lock().unwrap().as_ref().ok_or("cle non chargee")? };
+
+    let resp: serde_json::Value = ureq::get(&format!("{}/api/blob/{}", cfg.server_url, blob_id))
+        .set("Authorization", &format!("Bearer {token}"))
+        .set("Accept", "application/json")
+        .call()
+        .map_err(|e| format!("GET /blob: {e}"))?
+        .into_json()
+        .map_err(|e| format!("blob json: {e}"))?;
+
+    let data = resp["data"].as_str().ok_or("blob data manquant")?;
+    let nonce = resp["nonce"].as_str().ok_or("blob nonce manquant")?;
+    let png = crypto::decrypt_bytes(&key, data, nonce)?;
+    Ok(B64.encode(png))
+}
+
+/// Ecrit une image (PNG base64) dans le presse-papier + marque anti-boucle.
+#[tauri::command]
+fn copy_image(state: State<AppState>, png_b64: String) -> Result<(), String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine};
+    let png = B64.decode(&png_b64).map_err(|e| format!("base64: {e}"))?;
+    let img = image::load_from_memory(&png)
+        .map_err(|e| format!("decode png: {e}"))?
+        .to_rgba8();
+    let (w, h) = (img.width(), img.height());
+    let bytes = img.into_raw();
+
+    state
+        .recently_written
+        .lock()
+        .unwrap()
+        .insert(hash_text_bytes(&bytes));
+
+    let mut clipboard = arboard::Clipboard::new().map_err(|e| format!("clipboard: {e}"))?;
+    clipboard
+        .set_image(arboard::ImageData {
+            width: w as usize,
+            height: h as usize,
+            bytes: std::borrow::Cow::Owned(bytes),
+        })
+        .map_err(|e| format!("set image: {e}"))?;
+    Ok(())
+}
+
+fn hash_text_bytes(bytes: &[u8]) -> String {
+    let mut h = Sha256::new();
+    h.update(bytes);
+    format!("{:x}", h.finalize())
+}
+
 /// Ouvre/focus la fenetre d'historique (appel depuis tray ou hotkey).
 fn show_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
@@ -191,6 +247,8 @@ pub fn run() {
             get_config,
             decrypt_clip,
             copy_to_clipboard,
+            fetch_image,
+            copy_image,
             hide_window,
             unpair,
             update_server,

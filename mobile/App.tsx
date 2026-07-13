@@ -2,10 +2,11 @@ import { StatusBar } from "expo-status-bar";
 import { useShareIntent } from "expo-share-intent";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Text, ToastAndroid, useColorScheme, View } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { postClip } from "./src/api";
-import { encrypt } from "./src/crypto";
+import { postBlob, postClip } from "./src/api";
+import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
 import Home from "./src/screens/Home";
 import Onboarding from "./src/screens/Onboarding";
 import Settings from "./src/screens/Settings";
@@ -35,16 +36,27 @@ export default function App() {
   useEffect(() => {
     if (!hasShareIntent) return;
     (async () => {
-      const text = shareIntent?.text?.trim();
       const c = cfg ?? (await refresh());
-      if (!c || !text) { resetShareIntent(); return; }
+      const key = c ? await getKey() : null;
+      if (!c || !key) { resetShareIntent(); return; }
       setSharing(true);
       try {
-        const key = await getKey();
-        if (key) {
-          const { ciphertext, nonce } = encrypt(key, text);
-          await postClip(c.serverUrl, c.deviceToken, c.deviceId, ciphertext, nonce);
-          if (Platform.OS === "android") ToastAndroid.show("Envoyé à Clipd", ToastAndroid.SHORT);
+        const img = (shareIntent?.files ?? []).find((f: any) => f.mimeType?.startsWith("image/"));
+        if (img?.path) {
+          // Image : lit les octets -> chiffre -> blob -> clip kind=image
+          const b64 = await FileSystem.readAsStringAsync(img.path, { encoding: "base64" });
+          const blob = encryptBytes(key, base64ToBytes(b64));
+          const blobId = await postBlob(c.serverUrl, c.deviceToken, blob.ciphertext, blob.nonce);
+          const cap = encrypt(key, "Image");
+          await postClip(c.serverUrl, c.deviceToken, c.deviceId, cap.ciphertext, cap.nonce, { kind: "image", blobId });
+          if (Platform.OS === "android") ToastAndroid.show("Image envoyée", ToastAndroid.SHORT);
+        } else {
+          const text = shareIntent?.text?.trim();
+          if (text) {
+            const { ciphertext, nonce } = encrypt(key, text);
+            await postClip(c.serverUrl, c.deviceToken, c.deviceId, ciphertext, nonce);
+            if (Platform.OS === "android") ToastAndroid.show("Envoyé à Clipd", ToastAndroid.SHORT);
+          }
         }
       } catch {
         if (Platform.OS === "android") ToastAndroid.show("Échec de l'envoi", ToastAndroid.SHORT);

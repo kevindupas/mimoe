@@ -66,6 +66,29 @@ pub fn encrypt(key: &[u8; 32], plaintext: &str) -> Result<(String, String), Stri
     Ok((B64.encode(ct), B64.encode(nonce)))
 }
 
+/// Chiffre des octets bruts (image). Retourne `(ciphertext_b64, nonce_b64)`.
+pub fn encrypt_bytes(key: &[u8; 32], plain: &[u8]) -> Result<(String, String), String> {
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let ct = cipher
+        .encrypt(&nonce, plain)
+        .map_err(|_| "chiffrement echoue".to_string())?;
+    Ok((B64.encode(ct), B64.encode(nonce)))
+}
+
+/// Dechiffre des octets bruts (image).
+pub fn decrypt_bytes(key: &[u8; 32], ciphertext_b64: &str, nonce_b64: &str) -> Result<Vec<u8>, String> {
+    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let ct = B64.decode(ciphertext_b64).map_err(|e| format!("base64: {e}"))?;
+    let nonce_bytes = B64.decode(nonce_b64).map_err(|e| format!("base64 nonce: {e}"))?;
+    if nonce_bytes.len() != 12 {
+        return Err("nonce doit faire 12 octets".into());
+    }
+    cipher
+        .decrypt(Nonce::from_slice(&nonce_bytes), ct.as_ref())
+        .map_err(|_| "dechiffrement echoue".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

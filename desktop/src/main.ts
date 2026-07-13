@@ -19,6 +19,8 @@ interface FrontendConfig {
 interface RawClip {
   id: string;
   origin_device_id: string;
+  kind?: string;
+  blob_id?: string | null;
   ciphertext: string;
   nonce: string;
   is_sensitive: boolean;
@@ -27,7 +29,9 @@ interface RawClip {
 interface Clip {
   id: string;
   origin_device_id: string;
+  kind: "text" | "image";
   text: string;
+  imageB64?: string;
   is_sensitive: boolean;
   created_at: string;
   mine: boolean;
@@ -285,8 +289,15 @@ async function loadHistory() {
 async function decryptRaw(raw: RawClip): Promise<Clip | null> {
   try {
     const text = await invoke<string>("decrypt_clip", { ciphertext: raw.ciphertext, nonce: raw.nonce });
+    const isImage = raw.kind === "image" && !!raw.blob_id;
+    let imageB64: string | undefined;
+    if (isImage) {
+      try { imageB64 = await invoke<string>("fetch_image", { blobId: raw.blob_id }); }
+      catch (e) { console.error("fetch_image", raw.id, e); return null; }
+    }
     return {
-      id: raw.id, origin_device_id: raw.origin_device_id, text,
+      id: raw.id, origin_device_id: raw.origin_device_id,
+      kind: isImage ? "image" : "text", text, imageB64,
       is_sensitive: raw.is_sensitive, created_at: raw.created_at,
       mine: raw.origin_device_id === config!.device_id,
     };
@@ -382,15 +393,17 @@ function renderList(freshId?: string) {
 }
 
 function cardHtml(c: Clip, i: number, fresh: boolean): string {
-  const preview = escapeHtml(c.text.length > 200 ? c.text.slice(0, 200) + "…" : c.text);
   const src = c.mine
     ? `<span class="src">${icon.mac} ce Mac</span>`
     : `<span class="src">${icon.remote} reçu</span>`;
   const badge = c.is_sensitive ? `<span class="badge">${icon.shield} sensible</span>` : "";
   const delay = reduceMotion ? 0 : Math.min(i, 8) * 28;
+  const body = c.kind === "image" && c.imageB64
+    ? `<img class="card-img" src="data:image/png;base64,${c.imageB64}" alt="image" />`
+    : `<div class="card-text">${escapeHtml(c.text.length > 200 ? c.text.slice(0, 200) + "…" : c.text)}</div>`;
   return `
     <div class="card${fresh ? " fresh" : ""}" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
-      <div class="card-text">${preview}</div>
+      ${body}
       <div class="card-meta">${src}${badge}<span class="time">${relativeTime(c.created_at)}</span></div>
     </div>`;
 }
@@ -406,7 +419,11 @@ function paintSelection() {
 async function commitSelected() {
   const clip = filtered[selected];
   if (!clip) return;
-  await invoke("copy_to_clipboard", { text: clip.text });
+  if (clip.kind === "image" && clip.imageB64) {
+    await invoke("copy_image", { pngB64: clip.imageB64 });
+  } else {
+    await invoke("copy_to_clipboard", { text: clip.text });
+  }
   const el = document.querySelector<HTMLDivElement>(`.card[data-i="${selected}"]`);
   el?.classList.add("copied");
   setTimeout(() => invoke("hide_window"), reduceMotion ? 0 : 160);

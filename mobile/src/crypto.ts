@@ -67,3 +67,15 @@ export function decrypt(key: Uint8Array, ciphertextB64: string, nonceB64: string
   const nonce = base64ToBytes(nonceB64);
   return dec.decode(gcm(key, nonce).decrypt(ct));
 }
+
+/** Chiffre des octets bruts (image). Retourne (ciphertext, nonce) en base64. */
+export function encryptBytes(key: Uint8Array, plain: Uint8Array): { ciphertext: string; nonce: string } {
+  const nonce = Crypto.getRandomBytes(12);
+  const ct = gcm(key, nonce).encrypt(plain);
+  return { ciphertext: bytesToBase64(ct), nonce: bytesToBase64(nonce) };
+}
+
+/** Déchiffre des octets bruts. Retourne les octets. */
+export function decryptBytes(key: Uint8Array, ciphertextB64: string, nonceB64: string): Uint8Array {
+  return gcm(key, base64ToBytes(nonceB64)).decrypt(base64ToBytes(ciphertextB64));
+}

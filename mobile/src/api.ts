@@ -11,6 +11,8 @@ export interface AuthResult {
 export interface RawClip {
   id: string;
   origin_device_id: string;
+  kind?: string;
+  blob_id?: string | null;
   ciphertext: string;
   nonce: string;
   is_sensitive: boolean;
@@ -45,7 +47,8 @@ export async function auth(
 
 export async function postClip(
   serverUrl: string, token: string, deviceId: string,
-  ciphertext: string, nonce: string, isSensitive = false,
+  ciphertext: string, nonce: string,
+  opts: { kind?: "text" | "image"; blobId?: string; isSensitive?: boolean } = {},
 ): Promise<boolean> {
   const res = await fetch(`${serverUrl}/api/clip`, {
     method: "POST",
@@ -53,12 +56,34 @@ export async function postClip(
     body: JSON.stringify({
       id: Crypto.randomUUID(),
       origin_device_id: deviceId,
+      kind: opts.kind ?? "text",
+      blob_id: opts.blobId ?? null,
       ciphertext, nonce,
-      is_sensitive: isSensitive,
+      is_sensitive: opts.isSensitive ?? false,
       created_at: new Date().toISOString(),
     }),
   });
   return res.ok;
+}
+
+/** Upload d'un blob chiffré (image). Retourne son id. */
+export async function postBlob(serverUrl: string, token: string, data: string, nonce: string): Promise<string> {
+  const res = await fetch(`${serverUrl}/api/blob`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ data, nonce }),
+  });
+  if (!res.ok) throw new Error(`POST /blob ${res.status}`);
+  return (await res.json()).id;
+}
+
+/** Récupère un blob chiffré. */
+export async function fetchBlob(serverUrl: string, token: string, id: string): Promise<{ data: string; nonce: string }> {
+  const res = await fetch(`${serverUrl}/api/blob/${id}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`GET /blob ${res.status}`);
+  return res.json();
 }
 
 export async function fetchHistory(serverUrl: string, token: string): Promise<RawClip[]> {

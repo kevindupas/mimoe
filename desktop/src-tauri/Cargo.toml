@@ -32,6 +32,8 @@ sha2 = "0.10"
 keyring = { version = "3", features = ["apple-native"] }
 # Ecriture presse-papier
 arboard = "3"
+# Encodage/decodage PNG (images du presse-papier)
+image = { version = "0.25", default-features = false, features = ["png"] }
 # Effet de flou macOS (look Raycast/Spotlight)
 window-vibrancy = "0.6"
 # Emission : lecture NSPasteboard native (changeCount + type sensible), HTTP, uuid, timestamp

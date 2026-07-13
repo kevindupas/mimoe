@@ -26,13 +26,17 @@ const TEXT_UTI: &str = "public.utf8-plain-text";
 const POLL_MS: u64 = 500;
 
 struct Content {
-    text: String,
+    text: Option<String>,
     is_concealed: bool,
 }
 
 fn hash_text(text: &str) -> String {
+    hash_bytes(text.as_bytes())
+}
+
+fn hash_bytes(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
-    h.update(text.as_bytes());
+    h.update(bytes);
     format!("{:x}", h.finalize())
 }
 
@@ -42,14 +46,12 @@ fn types_contain_concealed(types: &[String]) -> bool {
     types.iter().any(|t| t == CONCEALED_TYPE)
 }
 
-/// Lit le presse-papier general. Renvoie None si pas de texte.
-fn read_pasteboard() -> Option<Content> {
-    // SAFETY : NSPasteboard general est accessible depuis n'importe quel thread
-    // pour de la lecture. On ne conserve aucune reference au-dela de ce scope.
+/// Lit le presse-papier : flag sensible + texte (None si pas de texte).
+fn read_pasteboard() -> Content {
+    // SAFETY : NSPasteboard general est accessible depuis n'importe quel thread pour lire.
     unsafe {
         let pb = NSPasteboard::generalPasteboard();
 
-        // Detecte le flag sensible.
         let mut type_names = Vec::new();
         if let Some(types) = pb.types() {
             for i in 0..types.count() {
@@ -58,14 +60,26 @@ fn read_pasteboard() -> Option<Content> {
         }
         let is_concealed = types_contain_concealed(&type_names);
 
-        let text_type = NSString::from_str(TEXT_UTI);
-        let s = pb.stringForType(&text_type)?;
-        let text = s.to_string();
-        if text.is_empty() {
-            return None;
-        }
-        Some(Content { text, is_concealed })
+        let text = pb
+            .stringForType(&NSString::from_str(TEXT_UTI))
+            .map(|s| s.to_string())
+            .filter(|t| !t.is_empty());
+
+        Content { text, is_concealed }
     }
+}
+
+/// Lit une image du presse-papier. Renvoie (hash RGBA pour anti-boucle, PNG encode).
+fn read_clipboard_image() -> Option<(String, Vec<u8>)> {
+    let mut clip = arboard::Clipboard::new().ok()?;
+    let img = clip.get_image().ok()?;
+    let hash = hash_bytes(&img.bytes);
+    let png = image::RgbaImage::from_raw(img.width as u32, img.height as u32, img.bytes.into_owned())?;
+    let mut out = Vec::new();
+    image::DynamicImage::ImageRgba8(png)
+        .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+        .ok()?;
+    Some((hash, out))
 }
 
 fn current_change_count() -> isize {
@@ -91,31 +105,43 @@ pub fn start_monitor(app: AppHandle) {
                 continue;
             }
 
-            let Some(content) = read_pasteboard() else {
-                continue;
-            };
+            let content = read_pasteboard();
 
             // Flag sensible -> ignore par defaut (ni chiffre, ni envoye, ni stocke).
             if content.is_concealed {
                 continue;
             }
 
-            let hash = hash_text(&content.text);
-
-            // Anti-boucle : si on vient d'ecrire ce contenu, on le consomme et on n'emet pas.
-            {
-                let state = app.state::<AppState>();
-                let mut written = state.recently_written.lock().unwrap();
-                if written.remove(&hash) {
+            // Texte : priorite.
+            if let Some(text) = content.text {
+                let hash = hash_text(&text);
+                if consume_written(&app, &hash) {
                     continue;
                 }
+                if let Err(e) = emit_clip(&app, &text) {
+                    eprintln!("[clipd] emission texte echouee: {e}");
+                }
+                continue;
             }
 
-            if let Err(e) = emit_clip(&app, &content.text) {
-                eprintln!("[clipd] emission echouee: {e}");
+            // Sinon : image.
+            if let Some((hash, png)) = read_clipboard_image() {
+                if consume_written(&app, &hash) {
+                    continue;
+                }
+                if let Err(e) = emit_image(&app, &png) {
+                    eprintln!("[clipd] emission image echouee: {e}");
+                }
             }
         }
     });
+}
+
+/// Anti-boucle : true si on vient d'ecrire ce hash (a consommer, ne pas emettre).
+fn consume_written(app: &AppHandle, hash: &str) -> bool {
+    let state = app.state::<AppState>();
+    let mut written = state.recently_written.lock().unwrap();
+    written.remove(hash)
 }
 
 /// Chiffre puis POST /clip vers le serveur.
@@ -148,6 +174,52 @@ fn emit_clip(app: &AppHandle, text: &str) -> Result<(), String> {
         .map_err(|e| format!("POST /clip: {e}"))?;
 
     Ok(())
+}
+
+/// Chiffre l'image, l'upload comme blob, puis POST /clip kind=image.
+fn emit_image(app: &AppHandle, png: &[u8]) -> Result<(), String> {
+    let cfg = store::load_config().ok_or("non configure")?;
+    let token = store::get_device_token()?;
+    let key = {
+        let state = app.state::<AppState>();
+        let guard = state.key.lock().unwrap();
+        *guard.as_ref().ok_or("cle non chargee")?
+    };
+
+    // 1. Upload du blob chiffre.
+    let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, png)?;
+    let blob_id = post_blob(&cfg.server_url, &token, &blob_data, &blob_nonce)?;
+
+    // 2. Clip pointeur (ciphertext = petite legende chiffree, non vide).
+    let (ciphertext, nonce) = crypto::encrypt(&key, "Image")?;
+    let payload = serde_json::json!({
+        "id": Uuid::new_v4().to_string(),
+        "origin_device_id": cfg.device_id,
+        "kind": "image",
+        "blob_id": blob_id,
+        "ciphertext": ciphertext,
+        "nonce": nonce,
+        "is_sensitive": false,
+        "created_at": chrono::Utc::now().to_rfc3339(),
+    });
+    ureq::post(&format!("{}/api/clip", cfg.server_url))
+        .set("Authorization", &format!("Bearer {token}"))
+        .set("Accept", "application/json")
+        .send_json(payload)
+        .map_err(|e| format!("POST /clip image: {e}"))?;
+    Ok(())
+}
+
+/// Upload d'un blob chiffre. Retourne son id.
+fn post_blob(server_url: &str, token: &str, data: &str, nonce: &str) -> Result<String, String> {
+    let resp: serde_json::Value = ureq::post(&format!("{server_url}/api/blob"))
+        .set("Authorization", &format!("Bearer {token}"))
+        .set("Accept", "application/json")
+        .send_json(serde_json::json!({ "data": data, "nonce": nonce }))
+        .map_err(|e| format!("POST /blob: {e}"))?
+        .into_json()
+        .map_err(|e| format!("blob json: {e}"))?;
+    resp["id"].as_str().map(String::from).ok_or("blob id manquant".into())
 }
 
 #[cfg(test)]
