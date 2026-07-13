@@ -419,8 +419,10 @@ function paintSelection() {
 async function commitSelected() {
   const clip = filtered[selected];
   if (!clip) return;
+  document.querySelectorAll(".card.copied").forEach((c) => c.classList.remove("copied"));
   const el = document.querySelector<HTMLDivElement>(`.card[data-i="${selected}"]`);
   el?.classList.add("copied");
+  setTimeout(() => el?.classList.remove("copied"), 900);
   if (clip.kind === "image" && clip.imageB64) {
     await invoke("copy_image", { pngB64: clip.imageB64 });
     showToast("Image copiée");
