@@ -1,0 +1,12 @@
+# Internal working notes (not published)
+/RECAP.md
+/project.md
+/PUSH_ANDROID_PLAN.md
+/docs/plans/
+
+# Local Claude config, never versioned
+.claude/
+.vite/
+
+# AI assistant specific files
+CLAUDE.md
