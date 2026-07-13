@@ -99,6 +99,14 @@ kbd {
 .ws-dot.connecting { background: #eab308; }
 .ws-dot.error { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
 
+#toast {
+  position: fixed; left: 50%; bottom: 54px; transform: translateX(-50%) translateY(8px);
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 600;
+  padding: 8px 14px; border-radius: 9px; opacity: 0; pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s; z-index: 100;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 /* --- Empty --- */
 .empty { margin: auto; text-align: center; color: var(--text-faint); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 20px; }
 .empty svg { width: 32px; height: 32px; opacity: 0.4; }

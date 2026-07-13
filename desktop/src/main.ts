@@ -419,14 +419,29 @@ function paintSelection() {
 async function commitSelected() {
   const clip = filtered[selected];
   if (!clip) return;
-  if (clip.kind === "image" && clip.imageB64) {
-    await invoke("copy_image", { pngB64: clip.imageB64 });
-  } else {
-    await invoke("copy_to_clipboard", { text: clip.text });
-  }
   const el = document.querySelector<HTMLDivElement>(`.card[data-i="${selected}"]`);
   el?.classList.add("copied");
-  setTimeout(() => invoke("hide_window"), reduceMotion ? 0 : 160);
+  if (clip.kind === "image" && clip.imageB64) {
+    await invoke("copy_image", { pngB64: clip.imageB64 });
+    showToast("Image copiée");
+    // Image : on ne ferme PAS.
+  } else {
+    await invoke("copy_to_clipboard", { text: clip.text });
+    setTimeout(() => invoke("hide_window"), reduceMotion ? 0 : 160);
+  }
+}
+
+function showToast(msg: string) {
+  let t = document.querySelector<HTMLDivElement>("#toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout((t as any)._timer);
+  (t as any)._timer = setTimeout(() => t!.classList.remove("show"), 1400);
 }
 
 // --- Settings (uniquement une fois appairé) ---
