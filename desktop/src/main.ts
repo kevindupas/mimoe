@@ -397,7 +397,10 @@ function renderList(freshId?: string) {
   list.innerHTML = filtered.map((c, i) => cardHtml(c, i, c.id === freshId)).join("");
   list.querySelectorAll<HTMLDivElement>(".card").forEach((el) => {
     const i = Number(el.dataset.i);
-    if (el.classList.contains("masked")) return; // masqué : pas de copie au clic
+    if (el.classList.contains("masked")) {
+      el.addEventListener("click", () => toggleHide(el.dataset.id!)); // clic = révéler
+      return;
+    }
     el.addEventListener("click", () => { selected = i; commitSelected(); });
     el.addEventListener("mousemove", () => { if (selected !== i) { selected = i; paintSelection(); } });
   });
@@ -406,9 +409,6 @@ function renderList(freshId?: string) {
   });
   list.querySelectorAll<HTMLButtonElement>(".card-hide").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.stopPropagation(); toggleHide(btn.dataset.hide!); });
-  });
-  list.querySelectorAll<HTMLButtonElement>(".card-reveal").forEach((btn) => {
-    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleHide(btn.dataset.reveal!); });
   });
   paintSelection();
 }
@@ -444,14 +444,7 @@ function toggleHide(id: string) {
 
 function cardHtml(c: Clip, i: number, fresh: boolean): string {
   const delay = reduceMotion ? 0 : Math.min(i, 8) * 28;
-
-  // Card masquée : gros oeil au centre, clic pour révéler.
-  if (hidden.has(c.id)) {
-    return `
-    <div class="card masked" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
-      <button class="card-reveal" data-reveal="${c.id}" title="Afficher">${icon.eye}<span>Masqué — cliquer pour afficher</span></button>
-    </div>`;
-  }
+  const masked = hidden.has(c.id);
 
   const src = c.mine
     ? `<span class="src">${icon.mac} ce Mac</span>`
@@ -460,14 +453,21 @@ function cardHtml(c: Clip, i: number, fresh: boolean): string {
   const body = c.kind === "image" && c.imageB64
     ? `<img class="card-img" src="data:image/png;base64,${c.imageB64}" alt="image" />`
     : `<div class="card-text">${escapeHtml(c.text.length > 200 ? c.text.slice(0, 200) + "…" : c.text)}</div>`;
-  return `
-    <div class="card${fresh ? " fresh" : ""}" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
+
+  // Masqué : contenu flouté + voile avec oeil pour révéler.
+  const actions = masked ? "" : `
       <div class="card-actions">
         <button class="card-hide" data-hide="${c.id}" title="Masquer" aria-label="Masquer">${icon.eyeOff}</button>
         <button class="card-del" data-del="${c.id}" title="Supprimer (⌘⌫)" aria-label="Supprimer">✕</button>
-      </div>
+      </div>`;
+  const overlay = masked ? `<div class="reveal-overlay" data-reveal="${c.id}" title="Afficher"><span class="reveal-badge">${icon.eye}</span></div>` : "";
+
+  return `
+    <div class="card${fresh ? " fresh" : ""}${masked ? " masked" : ""}" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
+      ${actions}
       ${body}
       <div class="card-meta">${src}${badge}<span class="time">${relativeTime(c.created_at)}</span></div>
+      ${overlay}
     </div>`;
 }
 

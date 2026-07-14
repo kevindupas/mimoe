@@ -50,6 +50,51 @@ function SwipeRow({ children, onDelete, danger }: { children: React.ReactNode; o
   );
 }
 
+// Motif génératif animé (formes qui morphent) pour une card masquée.
+const MORPH_BAG = [0, 1, 2, 3, 4, 5, 5, 5, 5, 5, 6, 6, 6]; // poids : vide/faible dominent
+const pickShape = () => MORPH_BAG[Math.floor(Math.random() * MORPH_BAG.length)];
+
+function CellShape({ idx, color }: { idx: number; color: string }) {
+  switch (idx) {
+    case 0: return <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: color }} />;
+    case 1: return <View style={{ gap: 3 }}>{[0, 1, 2].map((i) => <View key={i} style={{ width: 12, height: 1.6, backgroundColor: color }} />)}</View>;
+    case 2: return (
+      <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", width: 18, height: 1.6, backgroundColor: color, transform: [{ rotate: "45deg" }] }} />
+        <View style={{ position: "absolute", width: 18, height: 1.6, backgroundColor: color, transform: [{ rotate: "-45deg" }] }} />
+      </View>
+    );
+    case 3: return <View style={{ width: 11, height: 11, borderWidth: 1.6, borderColor: color }} />;
+    case 4: return <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center" }}><View style={{ width: 18, height: 1.6, backgroundColor: color, transform: [{ rotate: "-45deg" }] }} /></View>;
+    case 6: return <View style={{ width: 15, height: 15, backgroundColor: "rgba(128,128,128,0.12)" }} />;
+    default: return null;
+  }
+}
+
+function MorphCell({ color }: { color: string }) {
+  const [idx, setIdx] = useState(pickShape);
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>;
+    const loop = () => { t = setTimeout(() => { setIdx(pickShape()); loop(); }, 1000 + Math.random() * 4000); };
+    loop();
+    return () => clearTimeout(t);
+  }, []);
+  return <View style={morphStyles.cell}><CellShape idx={idx} color={color} /></View>;
+}
+
+const MORPH_CELLS = Array.from({ length: 90 });
+function MorphField({ color }: { color: string }) {
+  return (
+    <View style={morphStyles.wrap} pointerEvents="none">
+      {MORPH_CELLS.map((_, i) => <MorphCell key={i} color={color} />)}
+    </View>
+  );
+}
+const morphStyles = StyleSheet.create({
+  wrap: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "row", flexWrap: "wrap", overflow: "hidden", opacity: 0.55, padding: 4 },
+  cell: { width: 20, height: 20, alignItems: "center", justifyContent: "center" },
+});
+
 export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDelete, hidden, onToggleHide }: {
   p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
   onSwipeDelete: (c: Clip) => void; hidden: Set<string>; onToggleHide: (id: string) => void;
@@ -92,10 +137,10 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
         }
         renderItem={({ item }) =>
           hidden.has(item.id) ? (
-            // Card masquée : gros oeil au milieu, tap pour révéler.
+            // Card masquée : champ de points floutés + oeil au centre, tap pour révéler.
             <Pressable style={[s.card, s.masked, { marginBottom: 8 }]} onPress={() => onToggleHide(item.id)}>
-              <Ionicons name="eye-outline" size={30} color={p.accent} />
-              <Text style={s.maskedTxt}>Masqué — appuie pour afficher</Text>
+              <MorphField color={p.textDim} />
+              <View style={s.revealBadge}><Ionicons name="eye-outline" size={22} color="#fff" /></View>
             </Pressable>
           ) : (
             <SwipeRow onDelete={() => onSwipeDelete(item)} danger={p.danger}>
@@ -138,8 +183,8 @@ const styles = (p: Palette) => StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: p.accent },
   brandTxt: { color: p.text, fontWeight: "600", fontSize: 15 },
   card: { position: "relative", backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: 12, padding: 14 },
-  masked: { alignItems: "center", justifyContent: "center", gap: 8, minHeight: 88, borderStyle: "dashed" },
-  maskedTxt: { color: p.textDim, fontSize: 12 },
+  masked: { alignItems: "center", justifyContent: "center", minHeight: 88, overflow: "hidden", backgroundColor: p.surfaceAlt },
+  revealBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: p.accent, alignItems: "center", justifyContent: "center", zIndex: 1, elevation: 4, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   eyeBtn: { position: "absolute", top: 8, right: 8, zIndex: 2, padding: 4 },
   cardText: { color: p.text, fontSize: 15, lineHeight: 21, paddingRight: 22 },
   cardImg: { width: "100%", height: 160, borderRadius: 8, backgroundColor: p.surfaceAlt },
