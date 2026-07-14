@@ -47,6 +47,8 @@ const icon = {
   remote: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>`,
   shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
   clip: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`,
+  eye: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  eyeOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>`,
 };
 
 // --- Illustrations onboarding (SVG + anim CSS) ---
@@ -89,6 +91,8 @@ let search = "";
 let selected = 0;
 let view: "history" | "settings" | "onboarding" = "history";
 let soundOn = localStorage.getItem("clipd_sound") !== "off";
+// Cards masquées (contenu caché sur place), local à ce Mac. Ne supprime rien.
+let hidden: Set<string> = new Set(JSON.parse(localStorage.getItem("clipd_hidden") || "[]"));
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -393,11 +397,18 @@ function renderList(freshId?: string) {
   list.innerHTML = filtered.map((c, i) => cardHtml(c, i, c.id === freshId)).join("");
   list.querySelectorAll<HTMLDivElement>(".card").forEach((el) => {
     const i = Number(el.dataset.i);
+    if (el.classList.contains("masked")) return; // masqué : pas de copie au clic
     el.addEventListener("click", () => { selected = i; commitSelected(); });
     el.addEventListener("mousemove", () => { if (selected !== i) { selected = i; paintSelection(); } });
   });
   list.querySelectorAll<HTMLButtonElement>(".card-del").forEach((btn) => {
     btn.addEventListener("click", (e) => { e.stopPropagation(); removeClip(btn.dataset.del!); });
+  });
+  list.querySelectorAll<HTMLButtonElement>(".card-hide").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleHide(btn.dataset.hide!); });
+  });
+  list.querySelectorAll<HTMLButtonElement>(".card-reveal").forEach((btn) => {
+    btn.addEventListener("click", (e) => { e.stopPropagation(); toggleHide(btn.dataset.reveal!); });
   });
   paintSelection();
 }
@@ -424,18 +435,37 @@ function deleteSelected() {
   if (clip) removeClip(clip.id);
 }
 
+// Masque / démasque le contenu d'une card sur place (persistant, local).
+function toggleHide(id: string) {
+  if (hidden.has(id)) hidden.delete(id); else hidden.add(id);
+  localStorage.setItem("clipd_hidden", JSON.stringify([...hidden]));
+  renderList();
+}
+
 function cardHtml(c: Clip, i: number, fresh: boolean): string {
+  const delay = reduceMotion ? 0 : Math.min(i, 8) * 28;
+
+  // Card masquée : gros oeil au centre, clic pour révéler.
+  if (hidden.has(c.id)) {
+    return `
+    <div class="card masked" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
+      <button class="card-reveal" data-reveal="${c.id}" title="Afficher">${icon.eye}<span>Masqué — cliquer pour afficher</span></button>
+    </div>`;
+  }
+
   const src = c.mine
     ? `<span class="src">${icon.mac} ce Mac</span>`
     : `<span class="src">${icon.remote} reçu</span>`;
   const badge = c.is_sensitive ? `<span class="badge">${icon.shield} sensible</span>` : "";
-  const delay = reduceMotion ? 0 : Math.min(i, 8) * 28;
   const body = c.kind === "image" && c.imageB64
     ? `<img class="card-img" src="data:image/png;base64,${c.imageB64}" alt="image" />`
     : `<div class="card-text">${escapeHtml(c.text.length > 200 ? c.text.slice(0, 200) + "…" : c.text)}</div>`;
   return `
     <div class="card${fresh ? " fresh" : ""}" data-i="${i}" data-id="${c.id}" style="animation-delay:${delay}ms">
-      <button class="card-del" data-del="${c.id}" title="Supprimer (⌘⌫)" aria-label="Supprimer">✕</button>
+      <div class="card-actions">
+        <button class="card-hide" data-hide="${c.id}" title="Masquer" aria-label="Masquer">${icon.eyeOff}</button>
+        <button class="card-del" data-del="${c.id}" title="Supprimer (⌘⌫)" aria-label="Supprimer">✕</button>
+      </div>
       ${body}
       <div class="card-meta">${src}${badge}<span class="time">${relativeTime(c.created_at)}</span></div>
     </div>`;
