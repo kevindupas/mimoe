@@ -1,15 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Image, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Dimensions, FlatList, Image, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getClipImageBase64, getClipImageUri } from "../imageCache";
 import type { Config } from "../store";
 import type { Palette } from "../theme";
 import type { Clip } from "../useClips";
 
+const SCREEN_W = Dimensions.get("window").width;
+
 // Image chargée à la demande (quand la card est rendue), depuis le cache disque.
-// La liste s'affiche instantanément ; chaque image apparaît quand elle est prête.
 function ClipImage({ cfg, clipId, blobId, style, tint }: {
   cfg: Config; clipId: string; blobId: string; style: any; tint: string;
 }) {
@@ -23,18 +24,38 @@ function ClipImage({ cfg, clipId, blobId, style, tint }: {
   return <Image source={{ uri }} style={style} resizeMode="contain" />;
 }
 
-export default function Home({ p, cfg, clips, refreshing, onRefresh, onDelete }: {
-  p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void; onDelete: (id: string) => void;
+// Ligne swipe-vers-la-gauche = supprimer. Au-delà du seuil, la card part hors écran.
+function SwipeRow({ children, onDelete, danger }: { children: React.ReactNode; onDelete: () => void; danger: string }) {
+  const tx = useRef(new Animated.Value(0)).current;
+  const pan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => g.dx < -8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+    onPanResponderMove: (_, g) => tx.setValue(Math.min(0, g.dx)),
+    onPanResponderRelease: (_, g) => {
+      if (g.dx < -110 || g.vx < -0.6) {
+        Animated.timing(tx, { toValue: -SCREEN_W, duration: 180, useNativeDriver: true }).start(() => onDelete());
+      } else {
+        Animated.spring(tx, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
+      }
+    },
+  }), []);
+  return (
+    <View style={{ marginBottom: 8 }}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: danger, borderRadius: 12, alignItems: "flex-end", justifyContent: "center", paddingRight: 22 }]}>
+        <Ionicons name="trash-outline" size={22} color="#fff" />
+      </View>
+      <Animated.View style={{ transform: [{ translateX: tx }] }} {...pan.panHandlers}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
+export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDelete, hidden, onToggleHide }: {
+  p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
+  onSwipeDelete: (c: Clip) => void; hidden: Set<string>; onToggleHide: (id: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = styles(p);
-
-  function confirmDelete(c: Clip) {
-    Alert.alert("Supprimer ?", "Ce clip sera retiré de tous tes appareils.", [
-      { text: "Annuler", style: "cancel" },
-      { text: "Supprimer", style: "destructive", onPress: () => onDelete(c.id) },
-    ]);
-  }
 
   async function copyClip(c: Clip) {
     if (c.kind === "image" && c.blobId) {
@@ -69,21 +90,34 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onDelete }:
             <Text style={s.emptySub}>Partage du texte ou une image → Clipd.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable style={s.card} onPress={() => copyClip(item)} onLongPress={() => confirmDelete(item)} delayLongPress={350}>
-            {item.kind === "image" && item.blobId ? (
-              <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
-            ) : (
-              <Text style={s.cardText} numberOfLines={4}>{item.text}</Text>
-            )}
-            <View style={s.meta}>
-              <Ionicons name={item.mine ? "phone-portrait-outline" : "laptop-outline"} size={13} color={p.textDim} />
-              <Text style={s.metaTxt}>{item.mine ? "ce téléphone" : "reçu"}</Text>
-              {item.sensitive && <Text style={s.badge}>SENSIBLE</Text>}
-              <Text style={s.time}>{rel(item.createdAt)}</Text>
-            </View>
-          </Pressable>
-        )}
+        renderItem={({ item }) =>
+          hidden.has(item.id) ? (
+            // Card masquée : gros oeil au milieu, tap pour révéler.
+            <Pressable style={[s.card, s.masked, { marginBottom: 8 }]} onPress={() => onToggleHide(item.id)}>
+              <Ionicons name="eye-outline" size={30} color={p.accent} />
+              <Text style={s.maskedTxt}>Masqué — appuie pour afficher</Text>
+            </Pressable>
+          ) : (
+            <SwipeRow onDelete={() => onSwipeDelete(item)} danger={p.danger}>
+              <Pressable style={s.card} onPress={() => copyClip(item)}>
+                <Pressable style={s.eyeBtn} onPress={() => onToggleHide(item.id)} hitSlop={10}>
+                  <Ionicons name="eye-off-outline" size={17} color={p.textFaint} />
+                </Pressable>
+                {item.kind === "image" && item.blobId ? (
+                  <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
+                ) : (
+                  <Text style={s.cardText} numberOfLines={4}>{item.text}</Text>
+                )}
+                <View style={s.meta}>
+                  <Ionicons name={item.mine ? "phone-portrait-outline" : "laptop-outline"} size={13} color={p.textDim} />
+                  <Text style={s.metaTxt}>{item.mine ? "ce téléphone" : "reçu"}</Text>
+                  {item.sensitive && <Text style={s.badge}>SENSIBLE</Text>}
+                  <Text style={s.time}>{rel(item.createdAt)}</Text>
+                </View>
+              </Pressable>
+            </SwipeRow>
+          )
+        }
       />
     </View>
   );
@@ -103,8 +137,11 @@ const styles = (p: Palette) => StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: 8 },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: p.accent },
   brandTxt: { color: p.text, fontWeight: "600", fontSize: 15 },
-  card: { backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: 12, padding: 14, marginBottom: 8 },
-  cardText: { color: p.text, fontSize: 15, lineHeight: 21 },
+  card: { position: "relative", backgroundColor: p.surface, borderWidth: 1, borderColor: p.border, borderRadius: 12, padding: 14 },
+  masked: { alignItems: "center", justifyContent: "center", gap: 8, minHeight: 88, borderStyle: "dashed" },
+  maskedTxt: { color: p.textDim, fontSize: 12 },
+  eyeBtn: { position: "absolute", top: 8, right: 8, zIndex: 2, padding: 4 },
+  cardText: { color: p.text, fontSize: 15, lineHeight: 21, paddingRight: 22 },
   cardImg: { width: "100%", height: 160, borderRadius: 8, backgroundColor: p.surfaceAlt },
   meta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 9 },
   metaTxt: { color: p.textDim, fontSize: 11 },

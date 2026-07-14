@@ -6,15 +6,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid, useColorScheme, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteClip, postBlob, postClip, registerPushToken } from "./src/api";
+import { postBlob, postClip, registerPushToken } from "./src/api";
 import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
+import { loadHidden, saveHidden } from "./src/hidden";
 import { getFcmToken, loadNotifPref, setupNotifications } from "./src/notify";
 import Home from "./src/screens/Home";
 import Onboarding from "./src/screens/Onboarding";
 import Settings from "./src/screens/Settings";
 import { clearConfig, getKey, loadConfig, type Config } from "./src/store";
 import { colors, type Palette } from "./src/theme";
-import { useClips } from "./src/useClips";
+import { useClips, type Clip } from "./src/useClips";
 
 export default function App() {
   const scheme = useColorScheme();
@@ -124,21 +125,55 @@ export default function App() {
 
 function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () => void }) {
   const [tab, setTab] = useState<"home" | "settings">("home");
-  const { clips, refreshing, refresh, remove } = useClips(cfg);
+  const { clips, refreshing, refresh, softDelete } = useClips(cfg);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [undo, setUndo] = useState<null | (() => void)>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const onDelete = async (id: string) => {
-    remove([id]); // optimiste : retire tout de suite
-    try { await deleteClip(cfg.serverUrl, cfg.deviceToken, id); } catch { refresh(); }
-  };
+  useEffect(() => { loadHidden().then((ids) => setHidden(new Set(ids))); }, []);
+
+  function toggleHide(id: string) {
+    setHidden((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      saveHidden([...next]);
+      return next;
+    });
+  }
+
+  function onSwipeDelete(c: Clip) {
+    const undoFn = softDelete(c.id);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setUndo(() => undoFn);
+    undoTimer.current = setTimeout(() => setUndo(null), 4000);
+  }
+
+  function doUndo() {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undo?.();
+    setUndo(null);
+  }
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         {tab === "home"
-          ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh} onDelete={onDelete} />
+          ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh}
+              onSwipeDelete={onSwipeDelete} hidden={hidden} onToggleHide={toggleHide} />
           : <Settings p={p} cfg={cfg} onUnpair={onUnpair} />}
       </View>
       <BottomBar p={p} tab={tab} onTab={setTab} />
+      {undo && <UndoBar p={p} onUndo={doUndo} />}
+    </View>
+  );
+}
+
+function UndoBar({ p, onUndo }: { p: Palette; onUndo: () => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.undo, { bottom: insets.bottom + 66, backgroundColor: p.text }]}>
+      <Text style={{ color: p.bg, flex: 1, fontSize: 14 }}>Clip supprimé</Text>
+      <Pressable onPress={onUndo} hitSlop={10}><Text style={{ color: p.accent, fontWeight: "700", fontSize: 14 }}>ANNULER</Text></Pressable>
     </View>
   );
 }
@@ -170,4 +205,5 @@ const styles = StyleSheet.create({
   toast: { padding: 24, borderRadius: 16, alignItems: "center", gap: 12 },
   bar: { flexDirection: "row", borderTopWidth: 1, paddingTop: 8 },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 0 },
+  undo: { position: "absolute", left: 14, right: 14, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 13, borderRadius: 12, elevation: 6, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
 });

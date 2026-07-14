@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { fetchHistory, type RawClip } from "./api";
+import { deleteClip, fetchHistory, type RawClip } from "./api";
 import { loadClipCache, saveClipCache } from "./clipCache";
 import { decrypt } from "./crypto";
 import { pruneImageCache } from "./imageCache";
@@ -78,6 +78,28 @@ export function useClips(cfg: Config) {
     pruneImageCache(next.filter((r) => r.kind === "image").map((r) => r.id));
   }
 
+  // Suppression avec Undo : retire tout de suite en local, mais ne DELETE le serveur
+  // qu'apres 4s. Renvoie une fonction d'annulation qui remet le clip et coupe le DELETE.
+  function softDelete(id: string): () => void {
+    const raw = rawsRef.current.find((r) => r.id === id);
+    removeLocal([id]);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (!cancelled) deleteClip(cfg.serverUrl, cfg.deviceToken, id).catch(() => {});
+    }, 4000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      const key = keyRef.current;
+      if (raw && key) {
+        const next = [raw, ...rawsRef.current.filter((r) => r.id !== id)]
+          .sort((a, b) => b.created_at.localeCompare(a.created_at));
+        renderFrom(next, key);
+        saveClipCache(next);
+      }
+    };
+  }
+
   useEffect(() => {
     let alive = true;
 
@@ -130,5 +152,5 @@ export function useClips(cfg: Config) {
     };
   }, [cfg.serverUrl, cfg.deviceToken]);
 
-  return { clips, refreshing, refresh, remove: removeLocal };
+  return { clips, refreshing, refresh, remove: removeLocal, softDelete };
 }
