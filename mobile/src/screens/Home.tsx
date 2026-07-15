@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Dimensions, FlatList, Image, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
+import { ActivityIndicator, Animated, Dimensions, FlatList, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getClipImageBase64, getClipImageUri } from "../imageCache";
 import type { Config } from "../store";
@@ -21,7 +22,8 @@ function ClipImage({ cfg, clipId, blobId, style, tint }: {
     return () => { ok = false; };
   }, [clipId, blobId]);
   if (!uri) return <View style={[style, { alignItems: "center", justifyContent: "center" }]}><ActivityIndicator color={tint} /></View>;
-  return <Image source={{ uri }} style={style} resizeMode="contain" />;
+  // expo-image : anime nativement GIF/WebP (contrairement au <Image> RN sur Android).
+  return <Image source={uri} style={style} contentFit="contain" />;
 }
 
 // Ligne swipe-vers-la-gauche = supprimer. Au-delà du seuil, la card part hors écran.

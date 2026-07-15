@@ -13,6 +13,7 @@ export interface Clip {
   kind: "text" | "image";
   text: string;
   blobId?: string; // image : chargée à la demande (lazy) via imageCache, pas ici
+  mime?: string; // image : format d'origine (image/gif…), pour restituer l'animation
   origin: string;
   sensitive: boolean;
   createdAt: string;
@@ -36,6 +37,7 @@ export function useClips(cfg: Config) {
         kind: isImage ? "image" : "text",
         text,
         blobId: isImage ? r.blob_id! : undefined,
+        mime: r.mime ?? undefined,
         origin: r.origin_device_id,
         sensitive: r.is_sensitive,
         createdAt: r.created_at,

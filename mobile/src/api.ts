@@ -13,6 +13,7 @@ export interface RawClip {
   origin_device_id: string;
   kind?: string;
   blob_id?: string | null;
+  mime?: string | null;
   ciphertext: string;
   nonce: string;
   is_sensitive: boolean;
