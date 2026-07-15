@@ -16,3 +16,9 @@ export const MAX_CARD_TEXT = 200;
 export function preview(text: string): string {
   return text.length > MAX_CARD_TEXT ? text.slice(0, MAX_CARD_TEXT) + "…" : text;
 }
+
+/** Extension (majuscule) d'un nom de fichier, ou "" si aucune. */
+export function fileExt(name: string): string {
+  const i = name.lastIndexOf(".");
+  return i > 0 && i < name.length - 1 ? name.slice(i + 1).toUpperCase() : "";
+}

@@ -42,6 +42,14 @@ fn dirs_config_dir() -> Result<PathBuf, String> {
     Ok(PathBuf::from(home).join("Library/Application Support"))
 }
 
+/// Dossier de cache des images déchiffrées (une image = un fichier local, déchiffré
+/// une seule fois puis servi via file://). Doit matcher le scope assetProtocol.
+pub fn image_cache_dir() -> Result<PathBuf, String> {
+    let dir = dirs_config_dir()?.join("app.clipd").join("clipimg");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir clipimg: {e}"))?;
+    Ok(dir)
+}
+
 pub fn load_config() -> Option<Config> {
     let path = config_path().ok()?;
     let raw = std::fs::read_to_string(path).ok()?;

@@ -24,9 +24,9 @@ export interface RawClip {
 export interface Clip {
   id: string;
   origin_device_id: string;
-  kind: "text" | "image";
+  kind: "text" | "image" | "file";
   text: string;
-  imageB64?: string;
+  blobId?: string; // image/file : chargé à la demande (cache disque), pas en RAM
   mime?: string;
   is_sensitive: boolean;
   created_at: string;

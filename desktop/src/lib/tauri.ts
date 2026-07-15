@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { FrontendConfig } from "./types";
 
@@ -22,9 +22,15 @@ export const tauri = {
   hideWindow: () => invoke("hide_window"),
   decryptClip: (ciphertext: string, nonce: string) =>
     invoke<string>("decrypt_clip", { ciphertext, nonce }),
-  fetchImage: (blobId: string) => invoke<string>("fetch_image", { blobId }),
+  /** Met l'image en cache disque (déchiffrée) et renvoie une URL file:// utilisable en <img>. */
+  imageSrc: async (blobId: string) => convertFileSrc(await invoke<string>("cache_image", { blobId })),
   copyText: (text: string) => invoke("copy_to_clipboard", { text }),
-  copyImage: (pngB64: string) => invoke("copy_image", { pngB64 }),
+  /** Copie l'image (par blob) dans le presse-papier, décodage côté Rust (pas de base64 IPC). */
+  copyImage: (blobId: string) => invoke("copy_image_cached", { blobId }),
+  /** Copie un fichier (par blob) dans le presse-papier (file-url) → collable ailleurs. */
+  copyFile: (blobId: string, name: string) => invoke("copy_file", { blobId, name }),
+  /** Nettoie le cache disque des images qui ne sont plus dans l'historique. */
+  pruneImageCache: (keep: string[]) => invoke("prune_image_cache", { keep }),
   openUrl: (url: string) => openUrl(url),
   listRunningApps: () => invoke<RunningApp[]>("list_running_apps"),
   listInstalledApps: () => invoke<InstalledApp[]>("list_installed_apps"),

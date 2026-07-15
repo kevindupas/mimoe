@@ -14,9 +14,9 @@ use std::thread;
 use std::time::Duration;
 
 use objc2_app_kit::NSPasteboard;
-use objc2_foundation::NSString;
+use objc2_foundation::{NSString, NSURL};
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
 use crate::{crypto, store, AppState};
@@ -73,8 +73,8 @@ fn read_pasteboard() -> Content {
 }
 
 /// Lit une image du presse-papier (données brutes, ex. capture directe).
-/// Renvoie (hash, PNG encodé, mime). Les données brutes sont du RGBA → PNG.
-fn read_clipboard_image() -> Option<(String, Vec<u8>, &'static str)> {
+/// Renvoie (hash, PNG encodé, mime, nom). Les données brutes sont du RGBA → PNG.
+fn read_clipboard_image() -> Option<(String, Vec<u8>, &'static str, String)> {
     let mut clip = arboard::Clipboard::new().ok()?;
     let img = clip.get_image().ok()?;
     let hash = hash_bytes(&img.bytes);
@@ -83,69 +83,100 @@ fn read_clipboard_image() -> Option<(String, Vec<u8>, &'static str)> {
     image::DynamicImage::ImageRgba8(png)
         .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
         .ok()?;
-    Some((hash, out, "image/png"))
+    // Pas de fichier source (données brutes) → nom généré avec la date.
+    let name = format!("Capture {}.png", chrono::Local::now().format("%Y-%m-%d à %H.%M.%S"));
+    Some((hash, out, "image/png", name))
 }
 
-/// Mime d'une extension d'image. None si pas une image gérée.
-fn image_mime(ext: &str) -> Option<&'static str> {
+/// Mime d'une extension (large). Défaut : application/octet-stream.
+fn mime_for_ext(ext: &str) -> &'static str {
     match ext {
-        "png" => Some("image/png"),
-        "jpg" | "jpeg" => Some("image/jpeg"),
-        "gif" => Some("image/gif"),
-        "webp" => Some("image/webp"),
-        "tiff" | "tif" => Some("image/tiff"),
-        "bmp" => Some("image/bmp"),
-        _ => None,
+        // images
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "tiff" | "tif" => "image/tiff",
+        "bmp" => "image/bmp",
+        "svg" => "image/svg+xml",
+        "heic" => "image/heic",
+        // documents
+        "pdf" => "application/pdf",
+        "csv" => "text/csv",
+        "txt" => "text/plain",
+        "md" => "text/markdown",
+        "json" => "application/json",
+        "xml" => "application/xml",
+        "zip" => "application/zip",
+        "doc" => "application/msword",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xls" => "application/vnd.ms-excel",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        // audio / video
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        "ogg" => "audio/ogg",
+        "flac" => "audio/flac",
+        "mp4" => "video/mp4",
+        "mov" => "video/quicktime",
+        "webm" => "video/webm",
+        _ => "application/octet-stream",
     }
 }
 
-/// Chemin du fichier reference par le presse-papier (copie Finder), le cas echeant.
+fn is_image_mime(mime: &str) -> bool {
+    mime.starts_with("image/") && mime != "image/svg+xml"
+}
+
+/// Vrai chemin du fichier reference par le presse-papier (copie Finder).
+/// Le Finder donne une URL de reference (file:///.file/id=...) : NSURL.filePathURL
+/// la resout en chemin reel avec extension (POSIX/realpath n'y arrive PAS).
 fn pasteboard_file_path() -> Option<String> {
-    // SAFETY : lecture du general pasteboard.
-    let raw = unsafe {
+    // SAFETY : lecture du general pasteboard + resolution NSURL.
+    unsafe {
         let pb = NSPasteboard::generalPasteboard();
-        pb.stringForType(&NSString::from_str(FILE_URL_UTI))?.to_string()
-    };
-    file_url_to_path(&raw)
-}
-
-/// "file:///Users/…/Capture%20d%27ecran.png" -> "/Users/…/Capture d'ecran.png".
-fn file_url_to_path(url: &str) -> Option<String> {
-    let rest = url.strip_prefix("file://")?;
-    Some(percent_decode(rest))
-}
-
-fn percent_decode(s: &str) -> String {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                out.push(b);
-                i += 3;
-                continue;
-            }
-        }
-        out.push(bytes[i]);
-        i += 1;
+        let url_str = pb.stringForType(&NSString::from_str(FILE_URL_UTI))?;
+        let url = NSURL::URLWithString(&url_str)?;
+        let file_path_url = url.filePathURL()?;
+        file_path_url.path().map(|p| p.to_string())
     }
-    String::from_utf8_lossy(&out).into_owned()
 }
 
-/// Si le presse-papier reference un FICHIER image (copie depuis le Finder), on lit
-/// son contenu BRUT (aucun ré-encodage → GIF animé, format d'origine conservés) et
-/// on renvoie (hash, bytes, mime). Evite d'emettre le nom ou l'icone.
-fn read_file_image() -> Option<(String, Vec<u8>, &'static str)> {
-    let path = pasteboard_file_path()?;
-    let ext = std::path::Path::new(&path)
-        .extension()?
-        .to_string_lossy()
-        .to_lowercase();
-    let mime = image_mime(&ext)?;
+/// Taille max d'un fichier synchronise (au-dela : ignore).
+const MAX_FILE_BYTES: u64 = 25 * 1024 * 1024;
+
+/// Si le presse-papier reference un FICHIER (copie depuis le Finder), on lit son
+/// contenu BRUT (aucun ré-encodage → format d'origine, GIF animé conservés) et on
+/// renvoie (hash, bytes, mime, nom, kind). kind = "image" ou "file" selon le mime.
+fn read_file() -> Option<(String, Vec<u8>, &'static str, String, &'static str)> {
+    let path = pasteboard_file_path()?; // chemin reel resolu (avec extension)
+    let p = std::path::Path::new(&path);
+
+    let meta = std::fs::metadata(&path).ok()?;
+    if !meta.is_file() {
+        return None; // dossier copie -> ignore
+    }
+    if meta.len() > MAX_FILE_BYTES {
+        eprintln!("[clipd] fichier trop gros ({} Mo), ignore", meta.len() / 1024 / 1024);
+        return None;
+    }
+
+    let ext = p
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    let name = p
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "fichier".into());
+    let mime = mime_for_ext(&ext);
+    let kind = if is_image_mime(mime) { "image" } else { "file" };
+
     let bytes = std::fs::read(&path).ok()?;
     let hash = hash_bytes(&bytes);
-    Some((hash, bytes, mime))
+    Some((hash, bytes, mime, name, kind))
 }
 
 fn current_change_count() -> isize {
@@ -198,37 +229,39 @@ pub fn start_monitor(app: AppHandle) {
             // Fichier image copie depuis le Finder : le presse-papier ne contient que
             // la reference + le nom + une icone generique. On lit le VRAI fichier et on
             // l'emet comme image (sinon le nom partait en texte / l'icone en image).
-            if let Some((hash, bytes, mime)) = read_file_image() {
+            // Copie d'un FICHIER (Finder) : image OU tout autre type (pdf, csv, mp3…).
+            if let Some((hash, bytes, mime, name, kind)) = read_file() {
                 if consume_written(&app, &hash) {
                     continue;
                 }
                 if last_emitted.as_deref() == Some(hash.as_str()) {
                     continue;
                 }
-                if let Err(e) = emit_image(&app, &bytes, mime) {
-                    eprintln!("[clipd] emission fichier image echouee: {e}");
+                if let Err(e) = emit_blob(&app, &bytes, mime, &name, kind) {
+                    eprintln!("[clipd] emission fichier echouee: {e}");
                 } else {
                     last_emitted = Some(hash);
                 }
                 continue;
             }
 
-            // Image : priorite. Une copie d'image porte souvent AUSSI un texte
-            // (URL/legende) -> si on lisait le texte d'abord, l'image partirait en
-            // texte cote Android. On envoie donc l'image des qu'il y en a une.
-            if let Some((hash, png, mime)) = read_clipboard_image() {
-                if consume_written(&app, &hash) {
+            // Image DONNEES BRUTES (capture directe). UNIQUEMENT si ce n'est PAS une
+            // copie de fichier (deja gere ci-dessus) : sinon arboard renvoie l'ICONE.
+            if pasteboard_file_path().is_none() {
+                if let Some((hash, png, mime, name)) = read_clipboard_image() {
+                    if consume_written(&app, &hash) {
+                        continue;
+                    }
+                    if last_emitted.as_deref() == Some(hash.as_str()) {
+                        continue;
+                    }
+                    if let Err(e) = emit_blob(&app, &png, mime, &name, "image") {
+                        eprintln!("[clipd] emission image echouee: {e}");
+                    } else {
+                        last_emitted = Some(hash);
+                    }
                     continue;
                 }
-                if last_emitted.as_deref() == Some(hash.as_str()) {
-                    continue;
-                }
-                if let Err(e) = emit_image(&app, &png, mime) {
-                    eprintln!("[clipd] emission image echouee: {e}");
-                } else {
-                    last_emitted = Some(hash);
-                }
-                continue;
             }
 
             // Sinon : texte.
@@ -248,6 +281,22 @@ pub fn start_monitor(app: AppHandle) {
             }
         }
     });
+}
+
+/// Ecrit une reference de FICHIER dans le presse-papier (pour coller dans Finder/apps).
+pub fn set_pasteboard_file(path: &str) -> Result<(), String> {
+    // SAFETY : ecriture du general pasteboard.
+    unsafe {
+        let pb = NSPasteboard::generalPasteboard();
+        pb.clearContents();
+        let url = NSURL::fileURLWithPath(&NSString::from_str(path));
+        let abs = url.absoluteString().ok_or("url absolue introuvable")?;
+        if pb.setString_forType(&abs, &NSString::from_str(FILE_URL_UTI)) {
+            Ok(())
+        } else {
+            Err("setString(file-url) a echoue".into())
+        }
+    }
 }
 
 /// Anti-boucle : true si on vient d'ecrire ce hash (a consommer, ne pas emettre).
@@ -270,13 +319,15 @@ fn emit_clip(app: &AppHandle, text: &str) -> Result<(), String> {
 
     let (ciphertext, nonce) = crypto::encrypt(&key, text)?;
 
+    let id = Uuid::new_v4().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
     let payload = serde_json::json!({
-        "id": Uuid::new_v4().to_string(),
+        "id": id,
         "origin_device_id": cfg.device_id,
         "ciphertext": ciphertext,
         "nonce": nonce,
         "is_sensitive": false,
-        "created_at": chrono::Utc::now().to_rfc3339(),
+        "created_at": created_at,
     });
 
     let url = format!("{}/api/clip", cfg.server_url);
@@ -286,12 +337,21 @@ fn emit_clip(app: &AppHandle, text: &str) -> Result<(), String> {
         .send_json(payload)
         .map_err(|e| format!("POST /clip: {e}"))?;
 
+    // Affichage instantané sur CE Mac (l'origine ne recoit pas son propre clip par WS).
+    let _ = app.emit(
+        "clip-local",
+        serde_json::json!({
+            "id": id, "kind": "text", "text": text,
+            "origin_device_id": cfg.device_id, "created_at": created_at,
+        }),
+    );
+
     Ok(())
 }
 
-/// Chiffre l'image (octets bruts, format d'origine), l'upload comme blob, puis
-/// POST /clip kind=image avec le mime pour restituer le bon format cote clients.
-fn emit_image(app: &AppHandle, bytes: &[u8], mime: &str) -> Result<(), String> {
+/// Chiffre un contenu binaire (image ou fichier, octets bruts), l'upload comme blob,
+/// puis POST /clip avec kind + mime + nom (chiffre) pour restituer cote clients.
+fn emit_blob(app: &AppHandle, bytes: &[u8], mime: &str, name: &str, kind: &str) -> Result<(), String> {
     let cfg = store::load_config().ok_or("non configure")?;
     let token = store::get_device_token()?;
     let key = {
@@ -304,24 +364,40 @@ fn emit_image(app: &AppHandle, bytes: &[u8], mime: &str) -> Result<(), String> {
     let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, bytes)?;
     let blob_id = post_blob(&cfg.server_url, &token, &blob_data, &blob_nonce)?;
 
-    // 2. Clip pointeur (ciphertext = petite legende chiffree, non vide).
-    let (ciphertext, nonce) = crypto::encrypt(&key, "Image")?;
+    // Cache disque local direct (on a deja les octets) : pas de re-download au rendu.
+    if let Ok(dir) = store::image_cache_dir() {
+        let _ = std::fs::write(dir.join(&blob_id), bytes);
+    }
+
+    // 2. Clip pointeur (ciphertext = nom de fichier chiffre, affiche sous l'image).
+    let (ciphertext, nonce) = crypto::encrypt(&key, name)?;
+    let id = Uuid::new_v4().to_string();
+    let created_at = chrono::Utc::now().to_rfc3339();
     let payload = serde_json::json!({
-        "id": Uuid::new_v4().to_string(),
+        "id": id,
         "origin_device_id": cfg.device_id,
-        "kind": "image",
+        "kind": kind,
         "blob_id": blob_id,
         "mime": mime,
         "ciphertext": ciphertext,
         "nonce": nonce,
         "is_sensitive": false,
-        "created_at": chrono::Utc::now().to_rfc3339(),
+        "created_at": created_at,
     });
     ureq::post(&format!("{}/api/clip", cfg.server_url))
         .set("Authorization", &format!("Bearer {token}"))
         .set("Accept", "application/json")
         .send_json(payload)
-        .map_err(|e| format!("POST /clip image: {e}"))?;
+        .map_err(|e| format!("POST /clip {kind}: {e}"))?;
+
+    // Affichage instantané sur CE Mac.
+    let _ = app.emit(
+        "clip-local",
+        serde_json::json!({
+            "id": id, "kind": kind, "blob_id": blob_id, "mime": mime, "text": name,
+            "origin_device_id": cfg.device_id, "created_at": created_at,
+        }),
+    );
     Ok(())
 }
 
@@ -340,25 +416,8 @@ fn post_blob(server_url: &str, token: &str, data: &str, nonce: &str) -> Result<S
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn file_url_decodes_spaces_and_unicode() {
-        // "Capture d'écran.png" avec espace (%20), apostrophe courbe (%E2%80%99)
-        let u = "file:///Users/kev/Desktop/Capture%20d%E2%80%99ecran.png";
-        assert_eq!(file_url_to_path(u).unwrap(), "/Users/kev/Desktop/Capture d\u{2019}ecran.png");
-    }
 
-    #[test]
-    fn file_url_plain_path() {
-        assert_eq!(
-            file_url_to_path("file:///tmp/a.png").unwrap(),
-            "/tmp/a.png"
-        );
-    }
 
-    #[test]
-    fn non_file_url_is_none() {
-        assert!(file_url_to_path("https://x/y.png").is_none());
-    }
 
 
     /// Securite critique : le marqueur ConcealedType (mot de passe) est detecte
@@ -439,3 +498,4 @@ mod tests {
         assert_eq!(decrypted, secret, "le serveur relaie du ciphertext dechiffrable");
     }
 }
+

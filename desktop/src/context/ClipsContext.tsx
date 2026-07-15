@@ -65,6 +65,10 @@ export function ClipsProvider({
         if (c) next.push(c);
       }
       setClips(next);
+      // Nettoie le cache disque des images qui ne sont plus dans l'historique.
+      tauri
+        .pruneImageCache(next.filter((c) => c.blobId).map((c) => c.blobId!))
+        .catch(() => {});
     } catch (e) {
       console.error("loadHistory", e);
     }
@@ -95,6 +99,34 @@ export function ClipsProvider({
         if (!ids.size) return;
         setClips((prev) => prev.filter((c) => !ids.has(c.id)));
       }),
+      // Clip copié sur CE Mac : affichage instantané (l'origine ne reçoit pas son
+      // propre clip par WS → sinon il n'apparaissait qu'au resync sur focus).
+      listen<{
+        id: string;
+        kind: string;
+        text?: string;
+        blob_id?: string;
+        mime?: string;
+        origin_device_id: string;
+        created_at: string;
+      }>("clip-local", (e) => {
+        const p = e.payload;
+        setClips((prev) => {
+          if (prev.some((x) => x.id === p.id)) return prev;
+          const clip: Clip = {
+            id: p.id,
+            origin_device_id: p.origin_device_id,
+            kind: p.kind === "image" ? "image" : p.kind === "file" ? "file" : "text",
+            text: p.text ?? "",
+            blobId: p.blob_id ?? undefined,
+            mime: p.mime ?? "image/png",
+            is_sensitive: false,
+            created_at: p.created_at,
+            mine: true,
+          };
+          return [clip, ...prev];
+        });
+      }),
     ];
 
     // Fenêtre rouverte (hotkey/tray) : le WS Rust n'a jamais coupé, on resync par sécurité.
@@ -123,8 +155,10 @@ export function ClipsProvider({
   const copyClip = useCallback(
     async (clip: Clip) => {
       // On ne ferme JAMAIS la fenêtre sur copie.
-      if (clip.kind === "image" && clip.imageB64) {
-        await tauri.copyImage(clip.imageB64);
+      if (clip.kind === "image" && clip.blobId) {
+        await tauri.copyImage(clip.blobId);
+      } else if (clip.kind === "file" && clip.blobId) {
+        await tauri.copyFile(clip.blobId, clip.text);
       } else {
         await tauri.copyText(clip.text);
       }

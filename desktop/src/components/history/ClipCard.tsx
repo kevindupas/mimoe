@@ -1,9 +1,10 @@
 import { cx } from "../../lib/cx";
-import { preview, relativeTime } from "../../lib/format";
+import { fileExt, preview, relativeTime } from "../../lib/format";
 import { detectContent } from "../../lib/detect";
 import { tauri } from "../../lib/tauri";
 import type { Clip } from "../../lib/types";
 import { Icon } from "../ui/Icon";
+import { ClipImage } from "./ClipImage";
 import { useLanguage } from "../../context/LanguageContext";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -89,13 +90,38 @@ export function ClipCard({
       )}
 
       <div className={cx("w-full transition-all duration-300", masked && "blur-[3.5px] opacity-15 select-none pointer-events-none")}>
-        {clip.kind === "image" && clip.imageB64 ? (
-          <div className="bg-transparency-grid flex max-h-[160px] w-full items-center justify-center rounded-md border border-border/40 p-2 overflow-hidden bg-surface mb-1">
-            <img
-              src={`data:${clip.mime ?? "image/png"};base64,${clip.imageB64}`}
-              alt="image"
-              className="block max-h-[140px] max-w-full rounded object-contain shadow-sm"
-            />
+        {clip.kind === "image" && clip.blobId ? (
+          <>
+            <div className="bg-transparency-grid flex max-h-[160px] w-full items-center justify-center rounded-md border border-border/40 p-2 overflow-hidden bg-surface mb-1">
+              <ClipImage
+                blobId={clip.blobId}
+                className="block max-h-[140px] max-w-full rounded object-contain shadow-sm"
+              />
+            </div>
+            {clip.text && (
+              <div className={cx("truncate text-[11px] font-medium", copied ? "text-white" : "text-dim")}>
+                {clip.text}
+              </div>
+            )}
+          </>
+        ) : clip.kind === "file" ? (
+          <div className="flex items-center gap-3">
+            <div
+              className={cx(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+                copied ? "bg-white/20 text-white" : "bg-accent-soft text-accent",
+              )}
+            >
+              <Icon name="file" className="h-5 w-5 stroke-[1.75]" />
+            </div>
+            <div className="min-w-0">
+              <div className={cx("truncate text-[13px] font-medium", copied ? "text-white" : "text-text")}>
+                {clip.text}
+              </div>
+              <div className={cx("text-[11px] uppercase", copied ? "text-white/80" : "text-faint")}>
+                {fileExt(clip.text) || "fichier"}
+              </div>
+            </div>
           </div>
         ) : (
           <div

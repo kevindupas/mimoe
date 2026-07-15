@@ -175,10 +175,8 @@ fn copy_to_clipboard(state: State<AppState>, text: String) -> Result<(), String>
     Ok(())
 }
 
-/// Telecharge un blob image, le dechiffre, renvoie le PNG en base64 (pour <img>).
-#[tauri::command]
-fn fetch_image(state: State<AppState>, blob_id: String) -> Result<String, String> {
-    use base64::{engine::general_purpose::STANDARD as B64, Engine};
+/// Telecharge un blob image + le dechiffre (octets bruts, format d'origine).
+fn fetch_blob_bytes(state: &State<AppState>, blob_id: &str) -> Result<Vec<u8>, String> {
     let cfg = store::load_config().ok_or("non configure")?;
     let token = store::get_device_token()?;
     let key = { *state.key.lock().unwrap().as_ref().ok_or("cle non chargee")? };
@@ -193,17 +191,86 @@ fn fetch_image(state: State<AppState>, blob_id: String) -> Result<String, String
 
     let data = resp["data"].as_str().ok_or("blob data manquant")?;
     let nonce = resp["nonce"].as_str().ok_or("blob nonce manquant")?;
-    let png = crypto::decrypt_bytes(&key, data, nonce)?;
-    Ok(B64.encode(png))
+    crypto::decrypt_bytes(&key, data, nonce).map_err(|e| format!("decrypt_bytes: {e}"))
 }
 
-/// Ecrit une image (PNG base64) dans le presse-papier + marque anti-boucle.
+/// Chemin local (cache disque) de l'image déchiffrée. Télécharge + déchiffre + écrit
+/// UNE seule fois ; ensuite le fichier est réutilisé (servi via file:///asset protocol).
+/// Zéro base64 en RAM côté JS, zéro re-téléchargement.
 #[tauri::command]
-fn copy_image(state: State<AppState>, png_b64: String) -> Result<(), String> {
-    use base64::{engine::general_purpose::STANDARD as B64, Engine};
-    let png = B64.decode(&png_b64).map_err(|e| format!("base64: {e}"))?;
-    let img = image::load_from_memory(&png)
-        .map_err(|e| format!("decode png: {e}"))?
+async fn cache_image(state: State<'_, AppState>, blob_id: String) -> Result<String, String> {
+    let path = store::image_cache_dir()?.join(&blob_id);
+    if !path.exists() {
+        let bytes = fetch_blob_bytes(&state, &blob_id)?;
+        std::fs::write(&path, &bytes).map_err(|e| format!("write cache: {e}"))?;
+    }
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// Copie un FICHIER (par blob) dans le presse-papier : ecrit les octets dechiffres
+/// dans un fichier temporaire avec son vrai nom, puis met la reference (file-url) au
+/// presse-papier → collable dans le Finder / les apps.
+#[tauri::command]
+async fn copy_file(state: State<'_, AppState>, blob_id: String, name: String) -> Result<(), String> {
+    let cache = store::image_cache_dir()?.join(&blob_id);
+    let raw = if cache.exists() {
+        std::fs::read(&cache).map_err(|e| format!("read cache: {e}"))?
+    } else {
+        let bytes = fetch_blob_bytes(&state, &blob_id)?;
+        let _ = std::fs::write(&cache, &bytes);
+        bytes
+    };
+
+    // Fichier temporaire avec le vrai nom (pour que le collage garde le bon nom).
+    let dir = std::env::temp_dir().join("clipd-paste");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir tmp: {e}"))?;
+    let tmp = dir.join(&name);
+    std::fs::write(&tmp, &raw).map_err(|e| format!("write tmp: {e}"))?;
+
+    // Anti-boucle : ne pas re-emettre ce qu'on vient d'ecrire.
+    state
+        .recently_written
+        .lock()
+        .unwrap()
+        .insert(hash_text_bytes(&raw));
+
+    clipboard::set_pasteboard_file(&tmp.to_string_lossy())
+}
+
+/// Vire du cache disque les images qui ne sont plus dans l'historique courant
+/// (best-effort) : évite que le cache grossisse indéfiniment.
+#[tauri::command]
+fn prune_image_cache(keep: Vec<String>) -> Result<(), String> {
+    let dir = store::image_cache_dir()?;
+    let keep: HashSet<String> = keep.into_iter().collect();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            if let Some(name) = e.file_name().to_str() {
+                if !keep.contains(name) {
+                    let _ = std::fs::remove_file(e.path());
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Copie une image (par blob_id) dans le presse-papier, depuis le cache disque si
+/// présent (sinon télécharge). Le décodage se fait cote Rust : aucun gros base64
+/// ne transite par l'IPC → copie instantanée.
+#[tauri::command]
+async fn copy_image_cached(state: State<'_, AppState>, blob_id: String) -> Result<(), String> {
+    let path = store::image_cache_dir()?.join(&blob_id);
+    let raw = if path.exists() {
+        std::fs::read(&path).map_err(|e| format!("read cache: {e}"))?
+    } else {
+        let bytes = fetch_blob_bytes(&state, &blob_id)?;
+        let _ = std::fs::write(&path, &bytes);
+        bytes
+    };
+
+    let img = image::load_from_memory(&raw)
+        .map_err(|e| format!("decode image: {e}"))?
         .to_rgba8();
     let (w, h) = (img.width(), img.height());
     let bytes = img.into_raw();
@@ -300,8 +367,10 @@ pub fn run() {
             get_config,
             decrypt_clip,
             copy_to_clipboard,
-            fetch_image,
-            copy_image,
+            cache_image,
+            copy_image_cached,
+            copy_file,
+            prune_image_cache,
             hide_window,
             unpair,
             update_server,
