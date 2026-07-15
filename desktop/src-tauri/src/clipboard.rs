@@ -9,6 +9,7 @@
 //! hash du contenu y est, c'est NOUS qui venons de l'ecrire (recopie depuis
 //! l'historique) -> on consomme l'entree et on n'emet rien.
 
+use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
@@ -23,6 +24,8 @@ use crate::{crypto, store, AppState};
 const CONCEALED_TYPE: &str = "org.nspasteboard.ConcealedType";
 // UTI du texte brut = valeur de NSPasteboardTypeString.
 const TEXT_UTI: &str = "public.utf8-plain-text";
+// UTI d'une reference de fichier (copie depuis le Finder).
+const FILE_URL_UTI: &str = "public.file-url";
 const POLL_MS: u64 = 500;
 
 struct Content {
@@ -69,8 +72,9 @@ fn read_pasteboard() -> Content {
     }
 }
 
-/// Lit une image du presse-papier. Renvoie (hash RGBA pour anti-boucle, PNG encode).
-fn read_clipboard_image() -> Option<(String, Vec<u8>)> {
+/// Lit une image du presse-papier (données brutes, ex. capture directe).
+/// Renvoie (hash, PNG encodé, mime). Les données brutes sont du RGBA → PNG.
+fn read_clipboard_image() -> Option<(String, Vec<u8>, &'static str)> {
     let mut clip = arboard::Clipboard::new().ok()?;
     let img = clip.get_image().ok()?;
     let hash = hash_bytes(&img.bytes);
@@ -79,7 +83,69 @@ fn read_clipboard_image() -> Option<(String, Vec<u8>)> {
     image::DynamicImage::ImageRgba8(png)
         .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
         .ok()?;
-    Some((hash, out))
+    Some((hash, out, "image/png"))
+}
+
+/// Mime d'une extension d'image. None si pas une image gérée.
+fn image_mime(ext: &str) -> Option<&'static str> {
+    match ext {
+        "png" => Some("image/png"),
+        "jpg" | "jpeg" => Some("image/jpeg"),
+        "gif" => Some("image/gif"),
+        "webp" => Some("image/webp"),
+        "tiff" | "tif" => Some("image/tiff"),
+        "bmp" => Some("image/bmp"),
+        _ => None,
+    }
+}
+
+/// Chemin du fichier reference par le presse-papier (copie Finder), le cas echeant.
+fn pasteboard_file_path() -> Option<String> {
+    // SAFETY : lecture du general pasteboard.
+    let raw = unsafe {
+        let pb = NSPasteboard::generalPasteboard();
+        pb.stringForType(&NSString::from_str(FILE_URL_UTI))?.to_string()
+    };
+    file_url_to_path(&raw)
+}
+
+/// "file:///Users/…/Capture%20d%27ecran.png" -> "/Users/…/Capture d'ecran.png".
+fn file_url_to_path(url: &str) -> Option<String> {
+    let rest = url.strip_prefix("file://")?;
+    Some(percent_decode(rest))
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Si le presse-papier reference un FICHIER image (copie depuis le Finder), on lit
+/// son contenu BRUT (aucun ré-encodage → GIF animé, format d'origine conservés) et
+/// on renvoie (hash, bytes, mime). Evite d'emettre le nom ou l'icone.
+fn read_file_image() -> Option<(String, Vec<u8>, &'static str)> {
+    let path = pasteboard_file_path()?;
+    let ext = std::path::Path::new(&path)
+        .extension()?
+        .to_string_lossy()
+        .to_lowercase();
+    let mime = image_mime(&ext)?;
+    let bytes = std::fs::read(&path).ok()?;
+    let hash = hash_bytes(&bytes);
+    Some((hash, bytes, mime))
 }
 
 fn current_change_count() -> isize {
@@ -108,6 +174,20 @@ pub fn start_monitor(app: AppHandle) {
                 continue;
             }
 
+            // Mode pause : on ignore ce changement (last_count deja avance -> pas de
+            // rattrapage a la reprise). La copie locale marche, rien ne part au serveur.
+            if app.state::<AppState>().paused.load(Ordering::Relaxed) {
+                continue;
+            }
+
+            // Blacklist : si l'app au premier plan (celle qui vient de copier) est
+            // blacklistee, on ignore cette copie.
+            if let Some(bid) = crate::apps::frontmost_bundle_id() {
+                if app.state::<AppState>().blacklist.lock().unwrap().contains(&bid) {
+                    continue;
+                }
+            }
+
             let content = read_pasteboard();
 
             // Flag sensible -> ignore par defaut (ni chiffre, ni envoye, ni stocke).
@@ -115,7 +195,43 @@ pub fn start_monitor(app: AppHandle) {
                 continue;
             }
 
-            // Texte : priorite.
+            // Fichier image copie depuis le Finder : le presse-papier ne contient que
+            // la reference + le nom + une icone generique. On lit le VRAI fichier et on
+            // l'emet comme image (sinon le nom partait en texte / l'icone en image).
+            if let Some((hash, bytes, mime)) = read_file_image() {
+                if consume_written(&app, &hash) {
+                    continue;
+                }
+                if last_emitted.as_deref() == Some(hash.as_str()) {
+                    continue;
+                }
+                if let Err(e) = emit_image(&app, &bytes, mime) {
+                    eprintln!("[clipd] emission fichier image echouee: {e}");
+                } else {
+                    last_emitted = Some(hash);
+                }
+                continue;
+            }
+
+            // Image : priorite. Une copie d'image porte souvent AUSSI un texte
+            // (URL/legende) -> si on lisait le texte d'abord, l'image partirait en
+            // texte cote Android. On envoie donc l'image des qu'il y en a une.
+            if let Some((hash, png, mime)) = read_clipboard_image() {
+                if consume_written(&app, &hash) {
+                    continue;
+                }
+                if last_emitted.as_deref() == Some(hash.as_str()) {
+                    continue;
+                }
+                if let Err(e) = emit_image(&app, &png, mime) {
+                    eprintln!("[clipd] emission image echouee: {e}");
+                } else {
+                    last_emitted = Some(hash);
+                }
+                continue;
+            }
+
+            // Sinon : texte.
             if let Some(text) = content.text {
                 let hash = hash_text(&text);
                 if consume_written(&app, &hash) {
@@ -126,22 +242,6 @@ pub fn start_monitor(app: AppHandle) {
                 }
                 if let Err(e) = emit_clip(&app, &text) {
                     eprintln!("[clipd] emission texte echouee: {e}");
-                } else {
-                    last_emitted = Some(hash);
-                }
-                continue;
-            }
-
-            // Sinon : image.
-            if let Some((hash, png)) = read_clipboard_image() {
-                if consume_written(&app, &hash) {
-                    continue;
-                }
-                if last_emitted.as_deref() == Some(hash.as_str()) {
-                    continue;
-                }
-                if let Err(e) = emit_image(&app, &png) {
-                    eprintln!("[clipd] emission image echouee: {e}");
                 } else {
                     last_emitted = Some(hash);
                 }
@@ -189,8 +289,9 @@ fn emit_clip(app: &AppHandle, text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Chiffre l'image, l'upload comme blob, puis POST /clip kind=image.
-fn emit_image(app: &AppHandle, png: &[u8]) -> Result<(), String> {
+/// Chiffre l'image (octets bruts, format d'origine), l'upload comme blob, puis
+/// POST /clip kind=image avec le mime pour restituer le bon format cote clients.
+fn emit_image(app: &AppHandle, bytes: &[u8], mime: &str) -> Result<(), String> {
     let cfg = store::load_config().ok_or("non configure")?;
     let token = store::get_device_token()?;
     let key = {
@@ -199,8 +300,8 @@ fn emit_image(app: &AppHandle, png: &[u8]) -> Result<(), String> {
         *guard.as_ref().ok_or("cle non chargee")?
     };
 
-    // 1. Upload du blob chiffre.
-    let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, png)?;
+    // 1. Upload du blob chiffre (octets bruts, aucun ré-encodage).
+    let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, bytes)?;
     let blob_id = post_blob(&cfg.server_url, &token, &blob_data, &blob_nonce)?;
 
     // 2. Clip pointeur (ciphertext = petite legende chiffree, non vide).
@@ -210,6 +311,7 @@ fn emit_image(app: &AppHandle, png: &[u8]) -> Result<(), String> {
         "origin_device_id": cfg.device_id,
         "kind": "image",
         "blob_id": blob_id,
+        "mime": mime,
         "ciphertext": ciphertext,
         "nonce": nonce,
         "is_sensitive": false,
@@ -238,6 +340,26 @@ fn post_blob(server_url: &str, token: &str, data: &str, nonce: &str) -> Result<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn file_url_decodes_spaces_and_unicode() {
+        // "Capture d'écran.png" avec espace (%20), apostrophe courbe (%E2%80%99)
+        let u = "file:///Users/kev/Desktop/Capture%20d%E2%80%99ecran.png";
+        assert_eq!(file_url_to_path(u).unwrap(), "/Users/kev/Desktop/Capture d\u{2019}ecran.png");
+    }
+
+    #[test]
+    fn file_url_plain_path() {
+        assert_eq!(
+            file_url_to_path("file:///tmp/a.png").unwrap(),
+            "/tmp/a.png"
+        );
+    }
+
+    #[test]
+    fn non_file_url_is_none() {
+        assert!(file_url_to_path("https://x/y.png").is_none());
+    }
+
 
     /// Securite critique : le marqueur ConcealedType (mot de passe) est detecte
     /// -> le contenu sera ignore (jamais chiffre ni envoye).

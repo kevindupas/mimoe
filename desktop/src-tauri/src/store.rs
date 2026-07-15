@@ -23,6 +23,9 @@ pub struct Config {
     pub reverb_host: String,
     pub reverb_port: u16,
     pub reverb_scheme: String, // http | https
+    /// Bundle ids des apps dont les copies ne sont JAMAIS captees (blacklist locale).
+    #[serde(default)]
+    pub blacklist: Vec<String>,
 }
 
 fn config_path() -> Result<PathBuf, String> {

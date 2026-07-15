@@ -1,9 +1,11 @@
+mod apps;
 mod clipboard;
 mod crypto;
 mod realtime;
 mod store;
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use serde::Serialize;
@@ -20,6 +22,12 @@ use tauri::{
 pub(crate) struct AppState {
     pub(crate) key: Mutex<Option<[u8; 32]>>,
     pub(crate) recently_written: Mutex<HashSet<String>>,
+    /// Mode pause : quand true, le moniteur presse-papier n'emet plus rien au serveur.
+    /// Session-only (defaut false au lancement) ; le frontend resynchronise son etat au boot.
+    pub(crate) paused: AtomicBool,
+    /// Bundle ids des apps blacklistees : leurs copies ne sont jamais emises.
+    /// Chargee du store au boot, modifiable depuis les reglages.
+    pub(crate) blacklist: Mutex<HashSet<String>>,
 }
 
 /// Config renvoyee au frontend pour le transport (Echo/pusher-js) + appels HTTP.
@@ -46,6 +54,44 @@ fn hash_text(text: &str) -> String {
 #[tauri::command]
 fn is_configured() -> bool {
     store::is_configured()
+}
+
+/// Active/desactive le mode pause (copie locale non emise vers le serveur).
+#[tauri::command]
+fn set_paused(state: State<AppState>, paused: bool) {
+    state.paused.store(paused, Ordering::Relaxed);
+}
+
+/// Liste des apps "normales" en cours (pour le selecteur de blacklist).
+#[tauri::command]
+fn list_running_apps() -> Vec<apps::RunningApp> {
+    apps::list_regular_apps()
+}
+
+/// Toutes les apps installees (nom + bundle id + icone), pour le selecteur de blacklist.
+#[tauri::command]
+async fn list_installed_apps() -> Vec<apps::InstalledApp> {
+    // Scan Spotlight + decodage d'icones : sur un thread bloquant pour ne pas figer l'IPC.
+    tauri::async_runtime::spawn_blocking(apps::list_installed_apps)
+        .await
+        .unwrap_or_default()
+}
+
+/// Blacklist courante (bundle ids).
+#[tauri::command]
+fn get_blacklist() -> Vec<String> {
+    store::load_config().map(|c| c.blacklist).unwrap_or_default()
+}
+
+/// Remplace la blacklist : persiste au store + met a jour l'etat runtime.
+#[tauri::command]
+fn set_blacklist(state: State<AppState>, bundle_ids: Vec<String>) -> Result<(), String> {
+    if let Some(mut cfg) = store::load_config() {
+        cfg.blacklist = bundle_ids.clone();
+        store::save_config(&cfg)?;
+    }
+    *state.blacklist.lock().unwrap() = bundle_ids.into_iter().collect();
+    Ok(())
 }
 
 /// Premier lancement : appaire l'appareil. Derive la cle, la stocke au Keychain,
@@ -76,6 +122,7 @@ fn setup(
         reverb_host,
         reverb_port,
         reverb_scheme,
+        blacklist: Vec::new(),
     })?;
 
     *state.key.lock().unwrap() = Some(key);
@@ -244,6 +291,11 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             is_configured,
+            set_paused,
+            list_running_apps,
+            list_installed_apps,
+            get_blacklist,
+            set_blacklist,
             setup,
             get_config,
             decrypt_clip,
@@ -266,6 +318,12 @@ pub fn run() {
                     let state = app.state::<AppState>();
                     *state.key.lock().unwrap() = Some(key);
                 }
+            }
+
+            // Charge la blacklist du store (dispo des le boot, avant meme l'UI).
+            if let Some(cfg) = store::load_config() {
+                let state = app.state::<AppState>();
+                *state.blacklist.lock().unwrap() = cfg.blacklist.into_iter().collect();
             }
 
             // Surveillance du presse-papier (emission). Idle tant que non configure.
