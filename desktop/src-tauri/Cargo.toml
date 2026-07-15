@@ -1,0 +1,73 @@
+[package]
+name = "mimoe"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "mimoe_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+# --- Dependances communes a toutes les plateformes ---
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "protocol-asset"] }
+tauri-plugin-opener = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Crypto E2E : derivation Argon2id + AES-256-GCM
+argon2 = "0.5"
+aes-gcm = "0.10"
+base64 = "0.22"
+sha2 = "0.10"
+# Dedup fingerprint: HMAC-SHA256 keyed by the encryption key. The server can
+# compare two fingerprints without ever being able to guess the content (E2E).
+hmac = "0.12"
+# Secret storage: keyring picks the native vault per OS (feature per target below).
+keyring = { version = "3", default-features = false }
+# Clipboard write + raw image read (cross-platform).
+arboard = "3"
+# PNG encode/decode (clipboard images)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "tiff"] }
+ureq = { version = "2", features = ["json"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+# NATIVE WebSocket (Pusher/Reverb protocol): runs in a Rust thread, never frozen
+# by window hiding (unlike pusher-js in the WKWebView webview).
+tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+flate2 = "1.1.9"
+tauri-plugin-autostart = "2.5.1"
+tauri-plugin-updater = "2.10.1"
+tauri-plugin-process = "2.3.1"
+bip39 = { version = "2", features = ["rand"] }
+unicode-normalization = "0.1"
+
+# --- macOS uniquement : NSPasteboard/NSWorkspace natif + decodage .icns + Info.plist ---
+# Compile uniquement sur macOS. Sur Windows/Linux ces crates ne sont jamais tirees.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+objc2 = "0.5"
+objc2-app-kit = { version = "0.2", features = ["NSPasteboard", "NSWorkspace", "NSRunningApplication", "NSApplication", "NSImage"] }
+objc2-foundation = { version = "0.2", features = ["NSString", "NSArray", "NSData", "NSBundle", "NSURL"] }
+plist = "1"
+icns = "0.3"
+# Effet de flou macOS (look Raycast/Spotlight). Non utilise pour l'instant.
+window-vibrancy = "0.6"
+
+# --- Windows uniquement : presse-papier Win32 + fenetre active ---
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+# GetClipboardSequenceNumber + get/set typed + formats sensibles.
+clipboard-win = "5"
+# Fenetre au premier plan (equivalent frontmost) pour la blacklist.
+active-win-pos-rs = "0.8"
+
