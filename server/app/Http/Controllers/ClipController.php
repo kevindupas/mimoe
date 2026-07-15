@@ -28,7 +28,7 @@ class ClipController extends Controller
         $data = $request->validate([
             'id' => ['required', 'uuid'],
             'origin_device_id' => ['required', 'uuid'],
-            'kind' => ['sometimes', 'in:text,image'],
+            'kind' => ['sometimes', 'in:text,image,file'],
             'blob_id' => ['nullable', 'uuid'],
             'mime' => ['nullable', 'string', 'max:100'],
             'ciphertext' => ['required', 'string'],
