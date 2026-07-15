@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Dimensions, FlatList, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getClipImageBase64, getClipImageUri } from "../imageCache";
+import * as Sharing from "expo-sharing";
+import { getClipFileUri, getClipImageBase64, getClipImageUri } from "../imageCache";
 import type { Config } from "../store";
 import type { Palette } from "../theme";
 import type { Clip } from "../useClips";
@@ -105,6 +106,16 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
   const s = styles(p);
 
   async function copyClip(c: Clip) {
+    // Fichier : pas de "presse-papier fichier" sur mobile → on ouvre le partage/enregistrement.
+    if (c.kind === "file" && c.blobId) {
+      const uri = await getClipFileUri(cfg, c.id, c.blobId, c.text);
+      if (uri && (await Sharing.isAvailableAsync())) {
+        await Sharing.shareAsync(uri, c.mime ? { mimeType: c.mime } : undefined);
+      } else if (Platform.OS === "android") {
+        ToastAndroid.show("Fichier pas encore prêt", ToastAndroid.SHORT);
+      }
+      return;
+    }
     if (c.kind === "image" && c.blobId) {
       const b64 = await getClipImageBase64(cfg, c.id, c.blobId);
       if (b64) await Clipboard.setImageAsync(b64);
@@ -151,7 +162,20 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
                   <Ionicons name="eye-off-outline" size={17} color={p.textFaint} />
                 </Pressable>
                 {item.kind === "image" && item.blobId ? (
-                  <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
+                  <>
+                    <ClipImage cfg={cfg} clipId={item.id} blobId={item.blobId} style={s.cardImg} tint={p.accent} />
+                    {!!item.text && <Text style={s.imgName} numberOfLines={1}>{item.text}</Text>}
+                  </>
+                ) : item.kind === "file" ? (
+                  <View style={s.fileRow}>
+                    <View style={s.fileIcon}>
+                      <Ionicons name="document-outline" size={22} color={p.accent} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.fileName} numberOfLines={1}>{item.text}</Text>
+                      <Text style={s.fileHint}>Toucher pour partager</Text>
+                    </View>
+                  </View>
                 ) : (
                   <Text style={s.cardText} numberOfLines={4}>{item.text}</Text>
                 )}
@@ -190,6 +214,11 @@ const styles = (p: Palette) => StyleSheet.create({
   eyeBtn: { position: "absolute", top: 8, right: 8, zIndex: 2, padding: 4 },
   cardText: { color: p.text, fontSize: 15, lineHeight: 21, paddingRight: 22 },
   cardImg: { width: "100%", height: 160, borderRadius: 8, backgroundColor: p.surfaceAlt },
+  imgName: { color: p.textDim, fontSize: 12, fontWeight: "500", marginTop: 6 },
+  fileRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingRight: 22 },
+  fileIcon: { width: 44, height: 44, borderRadius: 10, backgroundColor: p.surfaceAlt, alignItems: "center", justifyContent: "center" },
+  fileName: { color: p.text, fontSize: 14, fontWeight: "600" },
+  fileHint: { color: p.textFaint, fontSize: 11, marginTop: 2 },
   meta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 9 },
   metaTxt: { color: p.textDim, fontSize: 11 },
   badge: { color: p.danger, fontSize: 10, fontWeight: "600", backgroundColor: "rgba(215,0,21,0.10)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5, overflow: "hidden" },

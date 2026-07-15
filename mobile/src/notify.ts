@@ -55,13 +55,12 @@ export async function getFcmToken(): Promise<string | null> {
   }
 }
 
-export async function notifyClip(kind: "text" | "image", preview: string) {
+export async function notifyClip(kind: "text" | "image" | "file", preview: string) {
   if (!enabled) return;
+  const body =
+    kind === "image" ? "🖼 Image reçue" : kind === "file" ? `📄 ${preview.slice(0, 80)}` : preview.slice(0, 100);
   await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Nouveau clip",
-      body: kind === "image" ? "🖼 Image reçue" : preview.slice(0, 100),
-    },
+    content: { title: "Nouveau clip", body },
     trigger: null,
   });
 }

@@ -66,3 +66,28 @@ export async function getClipImageBase64(cfg: Config, clipId: string, blobId: st
     return null;
   }
 }
+
+/** Télécharge + déchiffre un fichier vers un fichier local nommé (pour partage/enregistrement).
+ * Garde le vrai nom pour que les apps reconnaissent le type. */
+export async function getClipFileUri(
+  cfg: Config,
+  clipId: string,
+  blobId: string,
+  name: string,
+): Promise<string | null> {
+  try {
+    await ensureDir();
+    const safe = name.replace(/[/\\]/g, "_");
+    const path = `${DIR}${clipId}-${safe}`;
+    if ((await FileSystem.getInfoAsync(path)).exists) return path;
+
+    const key = await theKey();
+    if (!key) return null;
+    const blob = await fetchBlob(cfg.serverUrl, cfg.deviceToken, blobId);
+    const b64 = bytesToBase64(decryptBytes(key, blob.data, blob.nonce));
+    await FileSystem.writeAsStringAsync(path, b64, { encoding: "base64" });
+    return path;
+  } catch {
+    return null;
+  }
+}

@@ -10,10 +10,10 @@ import { getKey, type Config } from "./store";
 
 export interface Clip {
   id: string;
-  kind: "text" | "image";
+  kind: "text" | "image" | "file";
   text: string;
-  blobId?: string; // image : chargée à la demande (lazy) via imageCache, pas ici
-  mime?: string; // image : format d'origine (image/gif…), pour restituer l'animation
+  blobId?: string; // image/file : chargé à la demande (lazy) via cache, pas ici
+  mime?: string; // format d'origine (image/gif, application/pdf…)
   origin: string;
   sensitive: boolean;
   createdAt: string;
@@ -31,12 +31,13 @@ export function useClips(cfg: Config) {
   function toClip(r: RawClip, key: Uint8Array): Clip | null {
     try {
       const text = decrypt(key, r.ciphertext, r.nonce);
-      const isImage = r.kind === "image" && !!r.blob_id;
+      const kind = r.kind === "image" ? "image" : r.kind === "file" ? "file" : "text";
+      const hasBlob = (kind === "image" || kind === "file") && !!r.blob_id;
       return {
         id: r.id,
-        kind: isImage ? "image" : "text",
+        kind,
         text,
-        blobId: isImage ? r.blob_id! : undefined,
+        blobId: hasBlob ? r.blob_id! : undefined,
         mime: r.mime ?? undefined,
         origin: r.origin_device_id,
         sensitive: r.is_sensitive,
