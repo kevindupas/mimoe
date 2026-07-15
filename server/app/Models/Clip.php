@@ -19,6 +19,7 @@ class Clip extends Model
         'kind',
         'blob_id',
         'mime',
+        'pinned',
         'origin_device_id',
         'ciphertext',
         'nonce',
@@ -29,6 +30,7 @@ class Clip extends Model
 
     protected $casts = [
         'is_sensitive' => 'boolean',
+        'pinned' => 'boolean',
         'created_at' => 'datetime',
         'expires_at' => 'datetime',
     ];

@@ -146,4 +146,41 @@ class ClipTest extends TestCase
         $this->assertSame(50, Clip::where('user_id', $user->id)->count());
         $this->assertDatabaseMissing('clips', ['id' => $firstId]); // le plus vieux évincé
     }
+
+    public function test_pinned_clip_survives_cap_and_ttl(): void
+    {
+        config(['clipd.max_clips' => 5]);
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        // Un clip épinglé ET déjà expiré (TTL passé).
+        $pinned = $this->seedClip($user, ['pinned' => true, 'expires_at' => now()->subDay()]);
+
+        // On dépasse le cap avec des clips récents.
+        for ($i = 0; $i < 8; $i++) {
+            $this->postJson('/api/clip', $this->clip(['created_at' => now()->addSeconds($i)->toIso8601String()]))
+                ->assertSuccessful();
+        }
+
+        // L'épinglé n'est pas évincé…
+        $this->assertDatabaseHas('clips', ['id' => $pinned->id]);
+        // …et reste renvoyé par l'historique malgré son TTL dépassé, en tête.
+        $data = $this->getJson('/api/clips')->json('data');
+        $this->assertSame($pinned->id, $data[0]['id']);
+        $this->assertTrue($data[0]['pinned']);
+    }
+
+    public function test_pin_and_unpin_endpoint(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $clip = $this->seedClip($user);
+
+        $this->patchJson("/api/clip/{$clip->id}/pin", ['pinned' => true])
+            ->assertOk()->assertJsonPath('data.pinned', true);
+        $this->assertTrue(Clip::find($clip->id)->pinned);
+
+        $this->patchJson("/api/clip/{$clip->id}/pin", ['pinned' => false])->assertOk();
+        $this->assertFalse(Clip::find($clip->id)->pinned);
+    }
 }

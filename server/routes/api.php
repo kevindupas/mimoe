@@ -17,6 +17,7 @@ Route::middleware('throttle:6,1')->group(function () {
 Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
     Route::get('/clips', [ClipController::class, 'index']);
     Route::post('/clip', [ClipController::class, 'store']);
+    Route::patch('/clip/{id}/pin', [ClipController::class, 'pin']);
     Route::delete('/clip/{id}', [ClipController::class, 'destroy']);
     Route::post('/blob', [BlobController::class, 'store']);
     Route::get('/blob/{id}', [BlobController::class, 'show']);

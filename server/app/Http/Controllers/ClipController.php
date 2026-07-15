@@ -14,7 +14,8 @@ class ClipController extends Controller
     public function index(Request $request): JsonResponse
     {
         $clips = Clip::where('user_id', $request->user()->id)
-            ->where('expires_at', '>', now())
+            ->where(fn ($q) => $q->where('expires_at', '>', now())->orWhere('pinned', true))
+            ->orderByDesc('pinned')
             ->orderByDesc('created_at')
             ->limit(config('clipd.max_clips', 100))
             ->get();
@@ -71,6 +72,20 @@ class ClipController extends Controller
         return response()->json(['data' => $clip], 201);
     }
 
+    /** Épingle / désépingle un clip (survit au TTL et au cap). */
+    public function pin(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate(['pinned' => ['required', 'boolean']]);
+        $clip = Clip::where('user_id', $request->user()->id)->find($id);
+        if (! $clip) {
+            return response()->json(['message' => 'introuvable'], 404);
+        }
+        $clip->pinned = $data['pinned'];
+        $clip->save();
+
+        return response()->json(['data' => $clip]);
+    }
+
     /** Suppression manuelle d'un clip par l'utilisateur (+ son blob) + broadcast live. */
     public function destroy(Request $request, string $id): JsonResponse
     {
@@ -94,8 +109,16 @@ class ClipController extends Controller
     protected function enforceMaxClips(int $userId): void
     {
         $max = (int) config('clipd.max_clips', 50);
-        $keep = Clip::where('user_id', $userId)->orderByDesc('created_at')->limit($max)->pluck('id');
-        $stale = Clip::where('user_id', $userId)->whereNotIn('id', $keep)->get(['id', 'blob_id']);
+        // Les clips épinglés sont hors-cap : jamais évincés, ne comptent pas dans le N.
+        $keep = Clip::where('user_id', $userId)
+            ->where('pinned', false)
+            ->orderByDesc('created_at')
+            ->limit($max)
+            ->pluck('id');
+        $stale = Clip::where('user_id', $userId)
+            ->where('pinned', false)
+            ->whereNotIn('id', $keep)
+            ->get(['id', 'blob_id']);
         if ($stale->isEmpty()) {
             return;
         }
