@@ -20,6 +20,7 @@ interface ClipCardProps {
   onActivate: (index: number) => void;
   onToggleHide: (id: string) => void;
   onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
 export function ClipCard({
@@ -33,6 +34,7 @@ export function ClipCard({
   onActivate,
   onToggleHide,
   onDelete,
+  onTogglePin,
 }: ClipCardProps) {
   const { t } = useLanguage();
   const delay = reduceMotion ? 0 : Math.min(index, 8) * 28;
@@ -53,8 +55,31 @@ export function ClipCard({
         fresh && "anim-slide-in",
       )}
     >
+      {/* Indicateur épinglé persistant (visible sans survol). */}
+      {clip.pinned && !copied && (
+        <div className="absolute left-2 top-2 z-[1] text-accent group-hover:opacity-0 transition-opacity">
+          <Icon name="pin" className="h-3.5 w-3.5 stroke-[2]" />
+        </div>
+      )}
+
       {!copied && (
         <div className="absolute right-2 top-2 z-[2] flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePin(clip.id);
+            }}
+            title={clip.pinned ? t("unpin") : t("pin")}
+            aria-label={clip.pinned ? t("unpin") : t("pin")}
+            className={cx(
+              "flex h-6 w-6 items-center justify-center rounded-md border shadow-sm transition cursor-pointer",
+              clip.pinned
+                ? "border-transparent bg-accent text-white"
+                : "border-border bg-surface text-dim hover:bg-accent hover:text-white hover:border-transparent",
+            )}
+          >
+            <Icon name="pin" className="h-3.5 w-3.5 stroke-[1.75]" />
+          </button>
           {!masked && (
             <button
               onClick={(e) => {

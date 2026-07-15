@@ -15,6 +15,7 @@ export interface RawClip {
   kind?: string;
   blob_id?: string | null;
   mime?: string | null;
+  pinned?: boolean;
   ciphertext: string;
   nonce: string;
   is_sensitive: boolean;
@@ -28,6 +29,7 @@ export interface Clip {
   text: string;
   blobId?: string; // image/file : chargé à la demande (cache disque), pas en RAM
   mime?: string;
+  pinned: boolean;
   is_sensitive: boolean;
   created_at: string;
   mine: boolean;

@@ -15,7 +15,7 @@ import { SearchHeader } from "./SearchHeader";
 export function HistoryView() {
   const { goTo, paused } = useApp();
   const { t } = useLanguage();
-  const { clips, wsStatus, isHidden, toggleHide, copyClip, removeClip } = useClips();
+  const { clips, wsStatus, isHidden, toggleHide, copyClip, removeClip, togglePin } = useClips();
 
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(0);
@@ -25,13 +25,13 @@ export function HistoryView() {
 
   const freshId = useFreshClip(clips);
 
-  const filtered = useMemo(
-    () =>
-      search
-        ? clips.filter((c) => c.text.toLowerCase().includes(search.toLowerCase()))
-        : clips,
-    [clips, search],
-  );
+  const filtered = useMemo(() => {
+    const base = search
+      ? clips.filter((c) => c.text.toLowerCase().includes(search.toLowerCase()))
+      : clips;
+    // Épinglés en tête (tri stable : l'ordre serveur/récence est conservé sinon).
+    return [...base].sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  }, [clips, search]);
 
   // Garde la sélection dans les bornes quand la liste change.
   useEffect(() => {
@@ -147,6 +147,7 @@ export function HistoryView() {
               onActivate={activate}
               onToggleHide={toggleHide}
               onDelete={removeClip}
+              onTogglePin={togglePin}
             />
           ))
         )}

@@ -5,15 +5,18 @@ import { App } from "./App";
 import { AppProvider } from "./context/AppContext";
 import { ToastProvider } from "./context/ToastContext";
 import { LanguageProvider } from "./context/LanguageContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 createRoot(document.getElementById("app")!).render(
   <StrictMode>
-    <ToastProvider>
-      <LanguageProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </LanguageProvider>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <LanguageProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </LanguageProvider>
+      </ToastProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

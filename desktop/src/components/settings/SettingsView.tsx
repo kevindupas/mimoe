@@ -8,6 +8,7 @@ import { Switch } from "../ui/Switch";
 import { Group, Row } from "./Group";
 import { BlacklistGroup } from "./BlacklistGroup";
 import { useLanguage } from "../../context/LanguageContext";
+import { useTheme } from "../../context/ThemeContext";
 
 function NoteRow({ icon, children }: { icon: "shield" | "clip"; children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ function NoteRow({ icon, children }: { icon: "shield" | "clip"; children: React.
 export function SettingsView({ config }: { config: FrontendConfig }) {
   const { soundOn, setSoundOn, goTo, unpair } = useApp();
   const { t, languageSetting, setLanguageSetting } = useLanguage();
+  const { themeSetting, setThemeSetting } = useTheme();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -89,6 +91,20 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
                 <option value="en">English</option>
                 <option value="es">Español</option>
                 <option value="pt">Português</option>
+              </select>
+            </Row>
+            <Row>
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium text-text">{t("theme")}</span>
+              </div>
+              <select
+                value={themeSetting}
+                onChange={(e) => setThemeSetting(e.target.value as any)}
+                className="rounded-md border border-border-strong bg-surface text-text text-[12px] font-medium px-2.5 py-1 outline-none transition-colors duration-150 hover:bg-surface-hover cursor-pointer"
+              >
+                <option value="system">{t("themeSystem")}</option>
+                <option value="light">{t("themeLight")}</option>
+                <option value="dark">{t("themeDark")}</option>
               </select>
             </Row>
           </Group>

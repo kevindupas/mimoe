@@ -18,6 +18,7 @@ export async function decryptRaw(
       text,
       blobId: hasBlob ? raw.blob_id! : undefined,
       mime: raw.mime ?? "image/png",
+      pinned: raw.pinned ?? false,
       is_sensitive: raw.is_sensitive,
       created_at: raw.created_at,
       mine: raw.origin_device_id === config.device_id,

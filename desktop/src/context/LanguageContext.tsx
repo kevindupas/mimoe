@@ -43,6 +43,8 @@ const translations = {
     show: "Afficher",
     delete: "Supprimer (⌘⌫)",
     open: "Ouvrir",
+    pin: "Épingler",
+    unpin: "Désépingler",
 
     // Settings
     back: "Retour (esc)",
@@ -54,6 +56,10 @@ const translations = {
     soundDesc: "Petit « pop » quand un clip arrive",
     language: "Langue",
     langSystem: "Système",
+    theme: "Thème",
+    themeSystem: "Système",
+    themeLight: "Clair",
+    themeDark: "Sombre",
     security: "Sécurité",
     securityDesc1: "Les copies marquées sensibles (mots de passe) sont ignorées automatiquement — jamais chiffrées ni envoyées.",
     securityDesc2: "Historique : 24 h ou 100 derniers clips. Le serveur ne voit que du contenu chiffré.",
@@ -126,6 +132,8 @@ const translations = {
     show: "Show",
     delete: "Delete (⌘⌫)",
     open: "Open",
+    pin: "Pin",
+    unpin: "Unpin",
 
     // Settings
     back: "Back (esc)",
@@ -137,6 +145,10 @@ const translations = {
     soundDesc: "Play a small \"pop\" sound when a clip arrives",
     language: "Language",
     langSystem: "System",
+    theme: "Theme",
+    themeSystem: "System",
+    themeLight: "Light",
+    themeDark: "Dark",
     security: "Security",
     securityDesc1: "Copies marked as sensitive (passwords) are ignored automatically — never encrypted or sent.",
     securityDesc2: "History: 24h or last 100 clips. The server only sees encrypted content.",
@@ -209,6 +221,8 @@ const translations = {
     show: "Mostrar",
     delete: "Eliminar (⌘⌫)",
     open: "Abrir",
+    pin: "Fijar",
+    unpin: "Quitar",
 
     // Settings
     back: "Atrás (esc)",
@@ -220,6 +234,10 @@ const translations = {
     soundDesc: "Un pequeño «pop» cuando llega un clip",
     language: "Idioma",
     langSystem: "Sistema",
+    theme: "Tema",
+    themeSystem: "Sistema",
+    themeLight: "Claro",
+    themeDark: "Oscuro",
     security: "Seguridad",
     securityDesc1: "Las copias marcadas como sensibles (contraseñas) se ignoran automáticamente; nunca se cifran ni se envían.",
     securityDesc2: "Historial: 24 h o los últimos 100 clips. El servidor solo ve contenido cifrado.",
@@ -292,6 +310,8 @@ const translations = {
     show: "Mostrar",
     delete: "Excluir (⌘⌫)",
     open: "Abrir",
+    pin: "Fixar",
+    unpin: "Desafixar",
 
     // Settings
     back: "Voltar (esc)",
@@ -303,6 +323,10 @@ const translations = {
     soundDesc: "Um pequeno «pop» quando um clip chega",
     language: "Idioma",
     langSystem: "Sistema",
+    theme: "Tema",
+    themeSystem: "Sistema",
+    themeLight: "Claro",
+    themeDark: "Escuro",
     security: "Segurança",
     securityDesc1: "As cópias marcadas como sensíveis (senhas) são ignoradas automaticamente — nunca criptografadas ou enviadas.",
     securityDesc2: "Histórico: 24h ou últimos 100 clips. O servidor só vê conteúdo criptografado.",

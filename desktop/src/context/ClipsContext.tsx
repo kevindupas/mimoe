@@ -10,7 +10,7 @@ import {
 } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { deleteClip, fetchClips } from "../lib/api";
+import { deleteClip, fetchClips, pinClip } from "../lib/api";
 import { decryptRaw } from "../lib/clips";
 import { pop } from "../lib/sound";
 import { tauri } from "../lib/tauri";
@@ -25,6 +25,7 @@ interface ClipsApi {
   toggleHide: (id: string) => void;
   copyClip: (clip: Clip) => Promise<void>;
   removeClip: (id: string) => Promise<void>;
+  togglePin: (id: string) => Promise<void>;
 }
 
 const ClipsContext = createContext<ClipsApi | null>(null);
@@ -120,6 +121,7 @@ export function ClipsProvider({
             text: p.text ?? "",
             blobId: p.blob_id ?? undefined,
             mime: p.mime ?? "image/png",
+            pinned: false,
             is_sensitive: false,
             created_at: p.created_at,
             mine: true,
@@ -179,9 +181,25 @@ export function ClipsProvider({
     [config, loadHistory],
   );
 
+  const togglePin = useCallback(
+    async (id: string) => {
+      const clip = clipsRef.current.find((c) => c.id === id);
+      if (!clip) return;
+      const next = !clip.pinned;
+      setClips((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: next } : c)));
+      try {
+        await pinClip(config, id, next);
+      } catch (e) {
+        console.error("pin clip", e);
+        loadHistory(); // resync si l'appel a échoué
+      }
+    },
+    [config, loadHistory],
+  );
+
   const api = useMemo(
-    () => ({ clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip }),
-    [clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip],
+    () => ({ clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, togglePin }),
+    [clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, togglePin],
   );
 
   return <ClipsContext.Provider value={api}>{children}</ClipsContext.Provider>;

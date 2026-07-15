@@ -14,6 +14,23 @@ export async function fetchClips(config: FrontendConfig): Promise<RawClip[]> {
   return body.data ?? [];
 }
 
+export async function pinClip(
+  config: FrontendConfig,
+  id: string,
+  pinned: boolean,
+): Promise<void> {
+  const res = await fetch(`${config.server_url}/api/clip/${id}/pin`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${config.device_token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ pinned }),
+  });
+  if (!res.ok) throw new Error(`${res.status}`);
+}
+
 export async function deleteClip(config: FrontendConfig, id: string): Promise<void> {
   const res = await fetch(`${config.server_url}/api/clip/${id}`, {
     method: "DELETE",

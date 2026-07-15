@@ -19,8 +19,12 @@
   --kbd: #e5e5ea;
 }
 
+/* Tokens dark. Appliqués via :
+   - le thème système (prefers-color-scheme) SAUF si l'utilisateur force "light"
+   - le choix manuel data-theme="dark" (settings)
+   Cf. ThemeContext qui pose data-theme sur <html>. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #1c1c1e;
     --surface: #2c2c2e;
     --surface-hover: rgba(255, 255, 255, 0.04);
@@ -35,6 +39,21 @@
     --accent-soft: rgba(4, 122, 105, 0.15);
     --accent-hover: #058f7b;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --text: #f5f5f7;
+  --dim: #aeaeb2;
+  --faint: #8e8e93;
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --kbd: #3a3a3c;
+  --accent-soft: rgba(4, 122, 105, 0.15);
+  --accent-hover: #058f7b;
 }
 
 @theme {
