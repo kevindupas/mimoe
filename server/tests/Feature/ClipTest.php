@@ -57,6 +57,22 @@ class ClipTest extends TestCase
         $this->assertSame($user->id, Clip::first()->user_id);
     }
 
+    public function test_store_persists_and_returns_mime_for_images(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $payload = $this->clip([
+            'kind' => 'image',
+            'blob_id' => (string) Str::uuid(),
+            'mime' => 'image/gif',
+        ]);
+        $this->postJson('/api/clip', $payload)->assertCreated()->assertJsonPath('data.mime', 'image/gif');
+
+        $this->assertSame('image/gif', Clip::first()->mime);
+        $this->assertSame('image/gif', $this->getJson('/api/clips')->json('data.0.mime'));
+    }
+
     public function test_store_is_idempotent_on_same_id(): void
     {
         $user = User::factory()->create();

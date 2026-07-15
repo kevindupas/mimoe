@@ -18,6 +18,7 @@ class Clip extends Model
         'user_id',
         'kind',
         'blob_id',
+        'mime',
         'origin_device_id',
         'ciphertext',
         'nonce',
