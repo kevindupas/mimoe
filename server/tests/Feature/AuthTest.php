@@ -33,6 +33,13 @@ class AuthTest extends TestCase
         $this->assertDatabaseCount('devices', 1);
     }
 
+    public function test_register_blocked_when_registration_disabled(): void
+    {
+        config(['clipd.registration_enabled' => false]);
+        $this->postJson('/api/register', $this->payload())->assertStatus(403);
+        $this->assertDatabaseCount('users', 0);
+    }
+
     public function test_register_rejects_duplicate_email(): void
     {
         User::factory()->create(['email' => 'a@b.com']);

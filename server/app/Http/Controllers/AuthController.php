@@ -14,6 +14,11 @@ class AuthController extends Controller
     /** Inscription : crée le compte puis connecte l'appareil. */
     public function register(Request $request): JsonResponse
     {
+        // Instance privée : inscription fermée (les self-hosters gardent le défaut ouvert).
+        if (! config('clipd.registration_enabled', true)) {
+            return response()->json(['message' => 'Les inscriptions sont fermées sur ce serveur.'], 403);
+        }
+
         $data = $request->validate([
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
