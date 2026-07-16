@@ -1,0 +1,46 @@
+name: Release Clipd (desktop)
+
+# Déclenché en poussant un tag de version, ex. `git tag v0.2.0 && git push --tags`.
+# Construit l'app macOS, signe l'artifact d'update (clé Tauri), publie une release
+# GitHub avec le DMG + `latest.json` que l'app checke pour l'auto-update.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install frontend deps
+        working-directory: desktop
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Clé de signature des updates (secret GitHub à ajouter).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          # Pas de compte Apple payant → signature ad-hoc (pas de notarisation).
+          APPLE_SIGNING_IDENTITY: "-"
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Clipd ${{ github.ref_name }}"
+          releaseBody: "Mise à jour automatique via l'app. Au premier lancement : clic-droit > Ouvrir."
+          releaseDraft: false
+          prerelease: false
+          args: --target universal-apple-darwin

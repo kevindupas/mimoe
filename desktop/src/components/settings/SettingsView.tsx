@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useApp } from "../../context/AppContext";
 import { pop } from "../../lib/sound";
 import type { FrontendConfig } from "../../lib/types";
@@ -23,6 +24,21 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
   const { soundOn, setSoundOn, goTo, unpair } = useApp();
   const { t, languageSetting, setLanguageSetting } = useLanguage();
   const { themeSetting, setThemeSetting } = useTheme();
+  const [autoLaunch, setAutoLaunch] = useState(false);
+
+  useEffect(() => {
+    isEnabled().then(setAutoLaunch).catch(() => {});
+  }, []);
+
+  const onToggleAutoLaunch = async (on: boolean) => {
+    setAutoLaunch(on);
+    try {
+      await (on ? enable() : disable());
+    } catch (e) {
+      console.error("autostart", e);
+      setAutoLaunch(!on);
+    }
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -106,6 +122,13 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
                 <option value="light">{t("themeLight")}</option>
                 <option value="dark">{t("themeDark")}</option>
               </select>
+            </Row>
+            <Row>
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium text-text">{t("launchAtLogin")}</span>
+                <span className="text-[11px] text-faint">{t("launchAtLoginDesc")}</span>
+              </div>
+              <Switch checked={autoLaunch} onChange={onToggleAutoLaunch} />
             </Row>
           </Group>
 
