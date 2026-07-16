@@ -1,4 +1,5 @@
 mod apps;
+mod blobz;
 mod clipboard;
 mod crypto;
 mod realtime;
@@ -191,7 +192,8 @@ fn fetch_blob_bytes(state: &State<AppState>, blob_id: &str) -> Result<Vec<u8>, S
 
     let data = resp["data"].as_str().ok_or("blob data manquant")?;
     let nonce = resp["nonce"].as_str().ok_or("blob nonce manquant")?;
-    crypto::decrypt_bytes(&key, data, nonce).map_err(|e| format!("decrypt_bytes: {e}"))
+    let packed = crypto::decrypt_bytes(&key, data, nonce).map_err(|e| format!("decrypt_bytes: {e}"))?;
+    Ok(blobz::decompress(&packed))
 }
 
 /// Chemin local (cache disque) de l'image déchiffrée. Télécharge + déchiffre + écrit

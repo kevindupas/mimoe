@@ -326,6 +326,7 @@ fn emit_clip(app: &AppHandle, text: &str) -> Result<(), String> {
         "origin_device_id": cfg.device_id,
         "ciphertext": ciphertext,
         "nonce": nonce,
+        "dedup_hash": hash_text(text),
         "is_sensitive": false,
         "created_at": created_at,
     });
@@ -360,11 +361,12 @@ fn emit_blob(app: &AppHandle, bytes: &[u8], mime: &str, name: &str, kind: &str) 
         *guard.as_ref().ok_or("cle non chargee")?
     };
 
-    // 1. Upload du blob chiffre (octets bruts, aucun ré-encodage).
-    let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, bytes)?;
+    // 1. Compression (si utile) PUIS chiffrement du blob.
+    let packed = crate::blobz::compress(bytes);
+    let (blob_data, blob_nonce) = crypto::encrypt_bytes(&key, &packed)?;
     let blob_id = post_blob(&cfg.server_url, &token, &blob_data, &blob_nonce)?;
 
-    // Cache disque local direct (on a deja les octets) : pas de re-download au rendu.
+    // Cache disque local = octets BRUTS (décompressés) : pas de re-download au rendu.
     if let Ok(dir) = store::image_cache_dir() {
         let _ = std::fs::write(dir.join(&blob_id), bytes);
     }
@@ -381,6 +383,7 @@ fn emit_blob(app: &AppHandle, bytes: &[u8], mime: &str, name: &str, kind: &str) 
         "mime": mime,
         "ciphertext": ciphertext,
         "nonce": nonce,
+        "dedup_hash": hash_bytes(bytes),
         "is_sensitive": false,
         "created_at": created_at,
     });

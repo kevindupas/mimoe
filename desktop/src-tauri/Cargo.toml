@@ -48,4 +48,5 @@ chrono = "0.4"
 tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 plist = "1"
 icns = "0.3"
+flate2 = "1.1.9"
 
