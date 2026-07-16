@@ -16,6 +16,7 @@
     "expo-share-intent": "^8.0.1",
     "expo-sharing": "~57.0.5",
     "expo-status-bar": "~57.0.0",
+    "pako": "^3.0.1",
     "pusher-js": "^8.5.0",
     "react": "19.2.3",
     "react-native": "0.86.0",
@@ -24,6 +25,7 @@
     "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
+    "@types/pako": "^2.0.4",
     "@types/react": "~19.2.2",
     "patch-package": "^8.0.1",
     "typescript": "~6.0.3"

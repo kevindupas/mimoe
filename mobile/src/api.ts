@@ -14,6 +14,7 @@ export interface RawClip {
   kind?: string;
   blob_id?: string | null;
   mime?: string | null;
+  pinned?: boolean;
   ciphertext: string;
   nonce: string;
   is_sensitive: boolean;
@@ -94,6 +95,25 @@ export async function deleteClip(serverUrl: string, token: string, id: string): 
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`DELETE /clip ${res.status}`);
+}
+
+/** Épingle / désépingle un clip (survit au TTL et au cap). */
+export async function pinClip(
+  serverUrl: string,
+  token: string,
+  id: string,
+  pinned: boolean,
+): Promise<void> {
+  const res = await fetch(`${serverUrl}/api/clip/${id}/pin`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ pinned }),
+  });
+  if (!res.ok) throw new Error(`PATCH /pin ${res.status}`);
 }
 
 /** Enregistre le token push natif (FCM) de cet appareil aupres du serveur. */

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { deleteClip, fetchHistory, type RawClip } from "./api";
+import { deleteClip, fetchHistory, pinClip, type RawClip } from "./api";
 import { loadClipCache, saveClipCache } from "./clipCache";
 import { decrypt } from "./crypto";
 import { pruneImageCache } from "./imageCache";
@@ -14,6 +14,7 @@ export interface Clip {
   text: string;
   blobId?: string; // image/file : chargé à la demande (lazy) via cache, pas ici
   mime?: string; // format d'origine (image/gif, application/pdf…)
+  pinned: boolean;
   origin: string;
   sensitive: boolean;
   createdAt: string;
@@ -39,6 +40,7 @@ export function useClips(cfg: Config) {
         text,
         blobId: hasBlob ? r.blob_id! : undefined,
         mime: r.mime ?? undefined,
+        pinned: r.pinned ?? false,
         origin: r.origin_device_id,
         sensitive: r.is_sensitive,
         createdAt: r.created_at,
@@ -51,7 +53,22 @@ export function useClips(cfg: Config) {
 
   function renderFrom(raws: RawClip[], key: Uint8Array) {
     rawsRef.current = raws;
-    setClips(raws.map((r) => toClip(r, key)).filter((c): c is Clip => c !== null));
+    const list = raws.map((r) => toClip(r, key)).filter((c): c is Clip => c !== null);
+    // Épinglés en tête, puis récence.
+    list.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt));
+    setClips(list);
+  }
+
+  // Épingle / désépingle (optimiste + PATCH serveur, resync si échec).
+  function togglePin(id: string) {
+    const raw = rawsRef.current.find((r) => r.id === id);
+    const key = keyRef.current;
+    if (!raw || !key) return;
+    const next = !raw.pinned;
+    const updated = rawsRef.current.map((r) => (r.id === id ? { ...r, pinned: next } : r));
+    renderFrom(updated, key);
+    saveClipCache(updated);
+    pinClip(cfg.serverUrl, cfg.deviceToken, id, next).catch(() => refresh());
   }
 
   async function load() {
@@ -155,5 +172,5 @@ export function useClips(cfg: Config) {
     };
   }, [cfg.serverUrl, cfg.deviceToken]);
 
-  return { clips, refreshing, refresh, remove: removeLocal, softDelete };
+  return { clips, refreshing, refresh, remove: removeLocal, softDelete, togglePin };
 }

@@ -98,9 +98,10 @@ const morphStyles = StyleSheet.create({
   cell: { width: 20, height: 20, alignItems: "center", justifyContent: "center" },
 });
 
-export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDelete, hidden, onToggleHide }: {
+export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDelete, hidden, onToggleHide, onTogglePin }: {
   p: Palette; cfg: Config; clips: Clip[]; refreshing: boolean; onRefresh: () => void;
   onSwipeDelete: (c: Clip) => void; hidden: Set<string>; onToggleHide: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }) {
   const insets = useSafeAreaInsets();
   const s = styles(p);
@@ -158,6 +159,9 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
           ) : (
             <SwipeRow onDelete={() => onSwipeDelete(item)} danger={p.danger}>
               <Pressable style={s.card} onPress={() => copyClip(item)}>
+                <Pressable style={s.pinBtn} onPress={() => onTogglePin(item.id)} hitSlop={10}>
+                  <Ionicons name={item.pinned ? "pin" : "pin-outline"} size={16} color={item.pinned ? p.accent : p.textFaint} />
+                </Pressable>
                 <Pressable style={s.eyeBtn} onPress={() => onToggleHide(item.id)} hitSlop={10}>
                   <Ionicons name="eye-off-outline" size={17} color={p.textFaint} />
                 </Pressable>
@@ -212,7 +216,8 @@ const styles = (p: Palette) => StyleSheet.create({
   masked: { alignItems: "center", justifyContent: "center", minHeight: 88, overflow: "hidden", backgroundColor: p.surfaceAlt },
   revealBadge: { width: 44, height: 44, borderRadius: 22, backgroundColor: p.accent, alignItems: "center", justifyContent: "center", zIndex: 1, elevation: 4, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
   eyeBtn: { position: "absolute", top: 8, right: 8, zIndex: 2, padding: 4 },
-  cardText: { color: p.text, fontSize: 15, lineHeight: 21, paddingRight: 22 },
+  pinBtn: { position: "absolute", top: 8, right: 34, zIndex: 2, padding: 4 },
+  cardText: { color: p.text, fontSize: 15, lineHeight: 21, paddingRight: 48 },
   cardImg: { width: "100%", height: 160, borderRadius: 8, backgroundColor: p.surfaceAlt },
   imgName: { color: p.textDim, fontSize: 12, fontWeight: "500", marginTop: 6 },
   fileRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingRight: 22 },

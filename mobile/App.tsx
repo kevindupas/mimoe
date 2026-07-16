@@ -125,7 +125,7 @@ export default function App() {
 
 function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () => void }) {
   const [tab, setTab] = useState<"home" | "settings">("home");
-  const { clips, refreshing, refresh, softDelete } = useClips(cfg);
+  const { clips, refreshing, refresh, softDelete, togglePin } = useClips(cfg);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<null | (() => void)>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -159,7 +159,7 @@ function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () =
       <View style={{ flex: 1 }}>
         {tab === "home"
           ? <Home p={p} cfg={cfg} clips={clips} refreshing={refreshing} onRefresh={refresh}
-              onSwipeDelete={onSwipeDelete} hidden={hidden} onToggleHide={toggleHide} />
+              onSwipeDelete={onSwipeDelete} hidden={hidden} onToggleHide={toggleHide} onTogglePin={togglePin} />
           : <Settings p={p} cfg={cfg} onUnpair={onUnpair} />}
       </View>
       <BottomBar p={p} tab={tab} onTab={setTab} />

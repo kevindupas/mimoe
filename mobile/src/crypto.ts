@@ -4,6 +4,7 @@ import { gcm } from "@noble/ciphers/aes.js";
 import { bytesToUtf8, utf8ToBytes } from "@noble/ciphers/utils.js";
 import * as Crypto from "expo-crypto";
 import argon2 from "react-native-argon2";
+import { ungzip } from "pako";
 
 const SHARED_SALT = "clipd::v1::shared-salt::do-not-change";
 
@@ -77,4 +78,16 @@ export function encryptBytes(key: Uint8Array, plain: Uint8Array): { ciphertext: 
 /** Déchiffre des octets bruts. Retourne les octets. */
 export function decryptBytes(key: Uint8Array, ciphertextB64: string, nonceB64: string): Uint8Array {
   return gcm(key, base64ToBytes(nonceB64)).decrypt(base64ToBytes(ciphertextB64));
+}
+
+// --- Décompression des blobs (miroir de blobz.rs côté desktop) ---
+// Format : préfixe magique "CLZ1" + gzip. Sans préfixe = octets bruts.
+export function decompressBytes(bytes: Uint8Array): Uint8Array {
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x43 && bytes[1] === 0x4c && bytes[2] === 0x5a && bytes[3] === 0x31
+  ) {
+    return ungzip(bytes.subarray(4));
+  }
+  return bytes;
 }

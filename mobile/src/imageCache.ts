@@ -3,7 +3,7 @@
 // jamais gardée en base64 en RAM dans la liste. Vide l'écran de sa lenteur.
 import * as FileSystem from "expo-file-system/legacy";
 import { fetchBlob } from "./api";
-import { bytesToBase64, decryptBytes } from "./crypto";
+import { bytesToBase64, decompressBytes, decryptBytes } from "./crypto";
 import { getKey, type Config } from "./store";
 
 const DIR = FileSystem.cacheDirectory + "clipimg/";
@@ -33,7 +33,7 @@ export async function getClipImageUri(cfg: Config, clipId: string, blobId: strin
     const key = await theKey();
     if (!key) return null;
     const blob = await fetchBlob(cfg.serverUrl, cfg.deviceToken, blobId);
-    const b64 = bytesToBase64(decryptBytes(key, blob.data, blob.nonce));
+    const b64 = bytesToBase64(decompressBytes(decryptBytes(key, blob.data, blob.nonce)));
     await FileSystem.writeAsStringAsync(path, b64, { encoding: "base64" });
     return path;
   } catch {
@@ -84,7 +84,7 @@ export async function getClipFileUri(
     const key = await theKey();
     if (!key) return null;
     const blob = await fetchBlob(cfg.serverUrl, cfg.deviceToken, blobId);
-    const b64 = bytesToBase64(decryptBytes(key, blob.data, blob.nonce));
+    const b64 = bytesToBase64(decompressBytes(decryptBytes(key, blob.data, blob.nonce)));
     await FileSystem.writeAsStringAsync(path, b64, { encoding: "base64" });
     return path;
   } catch {
