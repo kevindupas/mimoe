@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
@@ -40,6 +41,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
   const [seedPhase, setSeedPhase] = useState<"reveal" | "quiz">("reveal");
   const [quizPositions, setQuizPositions] = useState<number[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
+  const [copied, setCopied] = useState(false);
 
   const s = styles(p);
   const seedScreen = step === 3 && register;
@@ -133,6 +135,17 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
     setStep(step + 1);
   }
 
+  /**
+   * expo-clipboard n'expose aucun marqueur "sensible" (Android a
+   * ClipDescription.EXTRA_IS_SENSITIVE depuis l'API 33, non remonté par Expo).
+   * La copie reste préférable au screenshot, qui finit dans Google Photos.
+   */
+  async function copySeed() {
+    await Clipboard.setStringAsync(words.join(" "));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   function cta() {
     if (step === 0) return "Commencer";
     if (step !== 3) return "Continuer";
@@ -224,10 +237,15 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
                   </View>
                 ))}
               </View>
+              <Pressable style={s.copyBtn} onPress={copySeed}>
+                <Ionicons name={copied ? "checkmark" : "copy-outline"} size={13} color={p.accent} />
+                <Text style={s.copyTxt}>{copied ? "Copié" : "Copier"}</Text>
+              </Pressable>
+
               <View style={s.warn}>
                 <Ionicons name="shield-outline" size={14} color={p.danger} />
                 <Text style={s.warnTxt}>
-                  Écris-les sur papier. Évite la capture d'écran : elle part dans Google Photos, et ta clé avec.
+                  Papier ou gestionnaire de mots de passe. Évite la capture d'écran : elle part dans Google Photos, et ta clé avec.
                 </Text>
               </View>
             </>
@@ -293,6 +311,12 @@ const styles = (p: Palette) => StyleSheet.create({
     backgroundColor: p.danger + "14", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9,
   },
   warnTxt: { color: p.danger, fontSize: 11.5, lineHeight: 16, flexShrink: 1 },
+  copyBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    alignSelf: "center", backgroundColor: p.accentSoft, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  copyTxt: { color: p.accent, fontSize: 12.5, fontWeight: "600" },
   quizGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   quizCell: { width: "47%", gap: 5 },
   quizLabel: { color: p.textFaint, fontSize: 11, fontWeight: "500" },

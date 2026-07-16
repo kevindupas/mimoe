@@ -49,6 +49,37 @@ fn types_contain_concealed(types: &[String]) -> bool {
     types.iter().any(|t| t == CONCEALED_TYPE)
 }
 
+/// Ecrit du texte en le marquant sensible (`org.nspasteboard.ConcealedType`).
+///
+/// Convention nspasteboard.org : les gestionnaires d'historique (Raycast, Maccy,
+/// Alfred) n'archivent pas ce qui la porte, et notre propre moniteur l'ignore
+/// deja. Sert a copier la seed sans la semer dans un historique en clair.
+///
+/// Elle ne couvre pas Universal Clipboard : ce n'est pas une API Apple, et rien
+/// ne garantit que Handoff la respecte.
+pub fn write_concealed(text: &str) -> Result<(), String> {
+    // SAFETY : NSPasteboard general est accessible pour ecrire depuis le thread principal
+    // des commandes Tauri.
+    unsafe {
+        let pb = NSPasteboard::generalPasteboard();
+        pb.clearContents();
+
+        let ok = pb.setString_forType(
+            &NSString::from_str(text),
+            &NSString::from_str(TEXT_UTI),
+        );
+        if !ok {
+            return Err("ecriture presse-papier refusee".into());
+        }
+        // Le marqueur doit etre pose apres le texte : clearContents remet la liste a zero.
+        pb.setString_forType(
+            &NSString::from_str(""),
+            &NSString::from_str(CONCEALED_TYPE),
+        );
+        Ok(())
+    }
+}
+
 /// Lit le presse-papier : flag sensible + texte (None si pas de texte).
 fn read_pasteboard() -> Content {
     // SAFETY : NSPasteboard general est accessible depuis n'importe quel thread pour lire.

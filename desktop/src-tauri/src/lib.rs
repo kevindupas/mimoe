@@ -82,6 +82,14 @@ fn seed_wordlist() -> Vec<String> {
     seed::wordlist()
 }
 
+/// Copie la seed en la marquant sensible : les gestionnaires d'historique ne
+/// l'archivent pas, et notre moniteur l'ignore. Alternative au screenshot, qui
+/// finirait dans iCloud.
+#[tauri::command]
+fn copy_seed(words: Vec<String>) -> Result<(), String> {
+    clipboard::write_concealed(&words.join(" "))
+}
+
 /// Liste des apps "normales" en cours (pour le selecteur de blacklist).
 #[tauri::command]
 fn list_running_apps() -> Vec<apps::RunningApp> {
@@ -392,6 +400,7 @@ pub fn run() {
             generate_seed,
             validate_seed,
             seed_wordlist,
+            copy_seed,
             list_running_apps,
             list_installed_apps,
             get_blacklist,

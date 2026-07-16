@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useLanguage } from "../../context/LanguageContext";
+import { tauri } from "../../lib/tauri";
+import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 
 /**
@@ -8,6 +11,14 @@ import { Icon } from "../ui/Icon";
  */
 export function SeedReveal({ words }: { words: string[] }) {
   const { t } = useLanguage();
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await tauri.copySeed(words);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
     <div className="flex w-full flex-col gap-3">
       <ol className="grid grid-cols-2 gap-x-2.5 gap-y-1.5">
@@ -23,6 +34,13 @@ export function SeedReveal({ words }: { words: string[] }) {
           </li>
         ))}
       </ol>
+
+      <Button variant="mini" className="self-center" onClick={copy}>
+        <span className="inline-flex items-center gap-1.5">
+          <Icon name={copied ? "check" : "copy"} className="h-3 w-3 stroke-[2]" />
+          {copied ? t("seedCopied") : t("seedCopy")}
+        </span>
+      </Button>
 
       <p className="flex items-start gap-2 rounded-[7px] border border-danger/15 bg-danger-soft px-2.5 py-2 text-left text-[11px] leading-[1.45] text-danger">
         <Icon name="shield" className="mt-px h-3.5 w-3.5 shrink-0 stroke-[1.75]" />

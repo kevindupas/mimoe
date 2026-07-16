@@ -11,6 +11,8 @@ export const tauri = {
   /** Valide une seed saisie (wordlist + checksum) avant d'appairer. Rejette avec le motif. */
   validateSeed: (words: string) => invoke<void>("validate_seed", { words }),
   seedWordlist: () => invoke<string[]>("seed_wordlist"),
+  /** Copie la seed marquée sensible : hors historique des gestionnaires de presse-papier. */
+  copySeed: (words: string[]) => invoke<void>("copy_seed", { words }),
   getConfig: () => invoke<FrontendConfig>("get_config"),
   setup: (args: {
     serverUrl: string;
