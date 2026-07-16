@@ -170,6 +170,31 @@ class ClipTest extends TestCase
         $this->assertTrue($data[0]['pinned']);
     }
 
+    public function test_dedup_ignores_same_device_duplicate_within_window(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $device = (string) Str::uuid();
+        $a = $this->clip(['origin_device_id' => $device, 'dedup_hash' => 'abc123']);
+        $b = $this->clip(['origin_device_id' => $device, 'dedup_hash' => 'abc123']); // même appareil + hash
+
+        $this->postJson('/api/clip', $a)->assertCreated();
+        $this->postJson('/api/clip', $b)->assertOk(); // dédupliqué, pas recréé
+        $this->assertSame(1, Clip::where('user_id', $user->id)->count());
+    }
+
+    public function test_dedup_keeps_cross_device_duplicate(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        // Même contenu (hash) mais DEUX appareils différents → on garde les deux.
+        $this->postJson('/api/clip', $this->clip(['origin_device_id' => (string) Str::uuid(), 'dedup_hash' => 'same']))->assertCreated();
+        $this->postJson('/api/clip', $this->clip(['origin_device_id' => (string) Str::uuid(), 'dedup_hash' => 'same']))->assertCreated();
+        $this->assertSame(2, Clip::where('user_id', $user->id)->count());
+    }
+
     public function test_pin_and_unpin_endpoint(): void
     {
         $user = User::factory()->create();

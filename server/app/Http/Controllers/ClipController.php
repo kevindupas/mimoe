@@ -32,6 +32,7 @@ class ClipController extends Controller
             'kind' => ['sometimes', 'in:text,image,file'],
             'blob_id' => ['nullable', 'uuid'],
             'mime' => ['nullable', 'string', 'max:100'],
+            'dedup_hash' => ['nullable', 'string', 'max:128'],
             'ciphertext' => ['required', 'string'],
             'nonce' => ['required', 'string'],
             'is_sensitive' => ['sometimes', 'boolean'],
@@ -44,12 +45,28 @@ class ClipController extends Controller
             return response()->json(['data' => $clip], 200);
         }
 
+        // Dédup des doublons TECHNIQUES : même appareil + même contenu (dedup_hash)
+        // arrivé il y a moins de 10 s → on renvoie l'existant sans recréer. Les copies
+        // depuis un AUTRE appareil ou plus tard (recopie volontaire) passent normalement.
+        if (! empty($data['dedup_hash'])) {
+            $recent = Clip::where('user_id', $userId)
+                ->where('origin_device_id', $data['origin_device_id'])
+                ->where('dedup_hash', $data['dedup_hash'])
+                ->where('created_at', '>', now()->subSeconds(10))
+                ->latest('created_at')
+                ->first();
+            if ($recent) {
+                return response()->json(['data' => $recent], 200);
+            }
+        }
+
         $clip = Clip::create([
             'id' => $data['id'],
             'user_id' => $userId,
             'kind' => $data['kind'] ?? 'text',
             'blob_id' => $data['blob_id'] ?? null,
             'mime' => $data['mime'] ?? null,
+            'dedup_hash' => $data['dedup_hash'] ?? null,
             'origin_device_id' => $data['origin_device_id'],
             'ciphertext' => $data['ciphertext'],
             'nonce' => $data['nonce'],

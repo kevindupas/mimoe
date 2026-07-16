@@ -19,6 +19,7 @@ class Clip extends Model
         'kind',
         'blob_id',
         'mime',
+        'dedup_hash',
         'pinned',
         'origin_device_id',
         'ciphertext',
