@@ -6,23 +6,40 @@ export function IlluSync() {
   return (
     <svg viewBox="0 0 220 120" fill="none" className="h-[110px] w-auto">
       {/* Mac */}
-      <rect x="16" y="34" width="70" height="46" rx="6" stroke={B} strokeWidth="2" />
-      <path d="M34 88h34" stroke={B} strokeWidth="2" strokeLinecap="round" />
-      
+      <rect x="6" y="34" width="58" height="40" rx="5" stroke={B} strokeWidth="2" />
+      <path d="M21 82h28" stroke={B} strokeWidth="2" strokeLinecap="round" />
+
+      {/* Serveur — tout transite par lui */}
+      <rect x="103" y="39" width="32" height="13" rx="3" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
+      <rect x="103" y="56" width="32" height="13" rx="3" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
+      <circle className="led" cx="110" cy="45.5" r="2" fill={A} />
+      <circle className="led led-2" cx="110" cy="62.5" r="2" fill={A} />
+
       {/* Phone */}
-      <rect x="150" y="26" width="40" height="66" rx="7" stroke={B} strokeWidth="2" />
-      <path d="M166 82h8" stroke={B} strokeWidth="2" strokeLinecap="round" />
-      
-      {/* Sync Arrow/Line */}
+      <rect x="174" y="26" width="32" height="56" rx="6" stroke={B} strokeWidth="2" />
+      <path d="M184 76h12" stroke={B} strokeWidth="2" strokeLinecap="round" />
+
+      {/* Mac → serveur */}
       <path
         className="sync-line"
-        d="M94 57h48"
+        d="M70 54h27"
         stroke={A}
         strokeWidth="2"
         strokeLinecap="round"
         strokeDasharray="4 6"
       />
-      <circle className="sync-dot" cx="0" cy="57" r="4.5" fill={A} />
+      <circle className="sync-dot-in" cx="0" cy="54" r="4" fill={A} />
+
+      {/* Serveur → phone */}
+      <path
+        className="sync-line"
+        d="M141 54h27"
+        stroke={A}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="4 6"
+      />
+      <circle className="sync-dot-out" cx="0" cy="54" r="4" fill={A} />
     </svg>
   );
 }
@@ -30,14 +47,24 @@ export function IlluSync() {
 export function IlluServer() {
   return (
     <svg viewBox="0 0 160 120" fill="none" className="h-[110px] w-auto">
-      <circle cx="80" cy="60" r="32" stroke={A} strokeWidth="1.5" className="pulse-ring opacity-50" />
-      {/* Server Rack 1 */}
-      <rect x="52" y="42" width="56" height="15" rx="3" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
-      <circle cx="62" cy="49.5" r="2" fill={A} />
-      
-      {/* Server Rack 2 */}
-      <rect x="52" y="63" width="56" height="15" rx="3" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
-      <circle cx="62" cy="70.5" r="2" fill={A} />
+      {/* Rack — 3 unités */}
+      <rect x="53" y="37" width="54" height="16" rx="4" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
+      <rect x="53" y="59" width="54" height="16" rx="4" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
+      <rect x="53" y="81" width="54" height="16" rx="4" stroke={B} strokeWidth="2" fill="var(--color-surface)" />
+
+      {/* Grilles de ventilation */}
+      <path
+        d="M74 45h24M74 67h24M74 89h24"
+        stroke={B}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity="0.45"
+      />
+
+      {/* LEDs d'activité — clignotent en cascade */}
+      <circle className="led" cx="63" cy="45" r="2.5" fill={A} />
+      <circle className="led led-2" cx="63" cy="67" r="2.5" fill={A} />
+      <circle className="led led-3" cx="63" cy="89" r="2.5" fill={A} />
     </svg>
   );
 }

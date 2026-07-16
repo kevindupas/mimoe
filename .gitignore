@@ -4,3 +4,4 @@
 
 # Config Claude locale, jamais versionnée
 .claude/
+.vite/
