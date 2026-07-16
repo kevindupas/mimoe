@@ -24,7 +24,9 @@ interface ClipsApi {
   isHidden: (id: string) => boolean;
   toggleHide: (id: string) => void;
   copyClip: (clip: Clip) => Promise<void>;
-  removeClip: (id: string) => Promise<void>;
+  removeClip: (id: string) => void;
+  undoDelete: (id: string) => void;
+  pendingDeletes: Clip[];
   togglePin: (id: string) => Promise<void>;
 }
 
@@ -50,6 +52,8 @@ export function ClipsProvider({
   const [clips, setClips] = useState<Clip[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
   const [hidden, setHidden] = useState<Set<string>>(loadHiddenSet);
+  const [pendingDeletes, setPendingDeletes] = useState<Clip[]>([]);
+  const deleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Refs pour que les listeners (abonnés une seule fois) lisent l'état frais.
   const clipsRef = useRef(clips);
@@ -168,18 +172,45 @@ export function ClipsProvider({
     [],
   );
 
+  // Suppression DIFFÉRÉE : on retire de la liste tout de suite (+ snackbar Annuler),
+  // mais le DELETE serveur n'est envoyé qu'après 4 s. Annuler avant = rien n'est perdu.
   const removeClip = useCallback(
-    async (id: string) => {
-      setClips((prev) => prev.filter((c) => c.id !== id)); // optimiste
-      try {
-        await deleteClip(config, id);
-      } catch (e) {
-        console.error("delete clip", e);
-        loadHistory(); // resync si l'appel a échoué
-      }
+    (id: string) => {
+      const clip = clipsRef.current.find((c) => c.id === id);
+      if (!clip) return;
+      setClips((prev) => prev.filter((c) => c.id !== id));
+      setPendingDeletes((prev) => [...prev.filter((c) => c.id !== id), clip]);
+
+      const timer = setTimeout(async () => {
+        deleteTimers.current.delete(id);
+        setPendingDeletes((prev) => prev.filter((c) => c.id !== id));
+        try {
+          await deleteClip(config, id);
+        } catch (e) {
+          console.error("delete clip", e);
+          loadHistory();
+        }
+      }, 4000);
+      deleteTimers.current.set(id, timer);
     },
     [config, loadHistory],
   );
+
+  const undoDelete = useCallback((id: string) => {
+    const timer = deleteTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    deleteTimers.current.delete(id);
+    setPendingDeletes((prev) => {
+      const clip = prev.find((c) => c.id === id);
+      if (clip) {
+        // Ré-insère à sa place (ordre récence = created_at décroissant).
+        setClips((cs) =>
+          [...cs, clip].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+        );
+      }
+      return prev.filter((c) => c.id !== id);
+    });
+  }, []);
 
   const togglePin = useCallback(
     async (id: string) => {
@@ -198,8 +229,8 @@ export function ClipsProvider({
   );
 
   const api = useMemo(
-    () => ({ clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, togglePin }),
-    [clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, togglePin],
+    () => ({ clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, undoDelete, pendingDeletes, togglePin }),
+    [clips, wsStatus, hidden, isHidden, toggleHide, copyClip, removeClip, undoDelete, pendingDeletes, togglePin],
   );
 
   return <ClipsContext.Provider value={api}>{children}</ClipsContext.Provider>;

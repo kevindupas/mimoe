@@ -20,6 +20,13 @@ const translations = {
     pauseTitle: "Mettre en pause la synchro",
     resumeTitle: "Reprendre la synchro",
     pausedBanner: "Synchro en pause — tes copies restent sur ce Mac",
+    filterAll: "Tout",
+    filterText: "Texte",
+    filterImages: "Images",
+    filterFiles: "Fichiers",
+    filterPinned: "Épinglés",
+    undoDelete: "Annuler",
+    deleted: "Supprimé",
 
     // Footer
     navigate: "naviguer",
@@ -109,6 +116,13 @@ const translations = {
     pauseTitle: "Pause sync",
     resumeTitle: "Resume sync",
     pausedBanner: "Sync paused — your copies stay on this Mac",
+    filterAll: "All",
+    filterText: "Text",
+    filterImages: "Images",
+    filterFiles: "Files",
+    filterPinned: "Pinned",
+    undoDelete: "Undo",
+    deleted: "Deleted",
 
     // Footer
     navigate: "navigate",
@@ -198,6 +212,13 @@ const translations = {
     pauseTitle: "Pausar la sincronización",
     resumeTitle: "Reanudar la sincronización",
     pausedBanner: "Sincronización en pausa — tus copias se quedan en este Mac",
+    filterAll: "Todo",
+    filterText: "Texto",
+    filterImages: "Imágenes",
+    filterFiles: "Archivos",
+    filterPinned: "Fijados",
+    undoDelete: "Deshacer",
+    deleted: "Eliminado",
 
     // Footer
     navigate: "navegar",
@@ -287,6 +308,13 @@ const translations = {
     pauseTitle: "Pausar a sincronização",
     resumeTitle: "Retomar a sincronização",
     pausedBanner: "Sincronização em pausa — suas cópias ficam neste Mac",
+    filterAll: "Tudo",
+    filterText: "Texto",
+    filterImages: "Imagens",
+    filterFiles: "Arquivos",
+    filterPinned: "Fixados",
+    undoDelete: "Desfazer",
+    deleted: "Excluído",
 
     // Footer
     navigate: "navegar",
