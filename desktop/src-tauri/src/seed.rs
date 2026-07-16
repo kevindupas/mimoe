@@ -78,6 +78,26 @@ mod tests {
     const VEC: &str =
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
+    /// Contrat inter-plateformes : ces sorties sont verifiees identiques a celles
+    /// de `normalizeSeed` (mobile/src/seed.ts). Toute divergence ferait deriver au
+    /// telephone et au Mac des cles differentes, sans erreur visible.
+    /// Si ce test change, la version mobile doit changer avec lui.
+    #[test]
+    fn normalize_respecte_le_contrat_interop() {
+        let cases = [
+            ("abandon abandon about", "abandon abandon about"),
+            ("  ABANDON abandon   about ", "abandon abandon about"),
+            ("Table\tRIVAGE\nsonner", "table rivage sonner"),
+            ("abandon  ABOUT", "abandon about"),
+            (" abandon about ", "abandon about"),
+            ("ZOO zoo   Zoo", "zoo zoo zoo"),
+            ("abandon", "abandon"),
+        ];
+        for (input, expected) in cases {
+            assert_eq!(normalize(input), expected, "entree : {input:?}");
+        }
+    }
+
     #[test]
     fn generate_donne_douze_mots_de_la_wordlist() {
         let words = generate().unwrap();
