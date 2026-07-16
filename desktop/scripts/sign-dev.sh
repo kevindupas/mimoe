@@ -11,7 +11,7 @@ set -euo pipefail
 IDENTITY="Apple Development: dupas.dev@gmail.com (8N9R4399V2)"
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 ENTITLEMENTS="$HERE/src-tauri/entitlements.plist"
-BIN="$HERE/src-tauri/target/debug/clipd"
+BIN="$HERE/src-tauri/target/debug/mimoe"
 
 if [[ ! -f "$BIN" ]]; then
   echo "Binaire introuvable : $BIN (lance d'abord un build)" >&2

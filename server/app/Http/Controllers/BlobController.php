@@ -22,7 +22,7 @@ class BlobController extends Controller
             'user_id' => $request->user()->id,
             'data' => $data['data'],
             'nonce' => $data['nonce'],
-            'expires_at' => now()->addHours((int) config('clipd.ttl_hours', 24)),
+            'expires_at' => now()->addHours((int) config('mimoe.ttl_hours', 24)),
         ]);
 
         return response()->json(['id' => $blob->id], 201);

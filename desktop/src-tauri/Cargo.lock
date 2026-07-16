@@ -610,39 +610,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clipd"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "arboard",
- "argon2",
- "base64 0.22.1",
- "chrono",
- "flate2",
- "icns",
- "image",
- "keyring",
- "objc2 0.5.2",
- "objc2-app-kit 0.2.2",
- "objc2-foundation 0.2.2",
- "plist",
- "serde",
- "serde_json",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tungstenite",
- "ureq",
- "uuid",
- "window-vibrancy",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2403,6 +2370,39 @@ name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "mimoe"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm",
+ "arboard",
+ "argon2",
+ "base64 0.22.1",
+ "chrono",
+ "flate2",
+ "icns",
+ "image",
+ "keyring",
+ "objc2 0.5.2",
+ "objc2-app-kit 0.2.2",
+ "objc2-foundation 0.2.2",
+ "plist",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tungstenite",
+ "ureq",
+ "uuid",
+ "window-vibrancy",
+]
 
 [[package]]
 name = "minisign-verify"

@@ -159,7 +159,7 @@ fn read_file() -> Option<(String, Vec<u8>, &'static str, String, &'static str)> 
         return None; // dossier copie -> ignore
     }
     if meta.len() > MAX_FILE_BYTES {
-        eprintln!("[clipd] fichier trop gros ({} Mo), ignore", meta.len() / 1024 / 1024);
+        eprintln!("[mimoe] fichier trop gros ({} Mo), ignore", meta.len() / 1024 / 1024);
         return None;
     }
 
@@ -238,7 +238,7 @@ pub fn start_monitor(app: AppHandle) {
                     continue;
                 }
                 if let Err(e) = emit_blob(&app, &bytes, mime, &name, kind) {
-                    eprintln!("[clipd] emission fichier echouee: {e}");
+                    eprintln!("[mimoe] emission fichier echouee: {e}");
                 } else {
                     last_emitted = Some(hash);
                 }
@@ -256,7 +256,7 @@ pub fn start_monitor(app: AppHandle) {
                         continue;
                     }
                     if let Err(e) = emit_blob(&app, &png, mime, &name, "image") {
-                        eprintln!("[clipd] emission image echouee: {e}");
+                        eprintln!("[mimoe] emission image echouee: {e}");
                     } else {
                         last_emitted = Some(hash);
                     }
@@ -274,7 +274,7 @@ pub fn start_monitor(app: AppHandle) {
                     continue; // meme contenu recopie -> pas de doublon
                 }
                 if let Err(e) = emit_clip(&app, &text) {
-                    eprintln!("[clipd] emission texte echouee: {e}");
+                    eprintln!("[mimoe] emission texte echouee: {e}");
                 } else {
                     last_emitted = Some(hash);
                 }
@@ -443,14 +443,14 @@ mod tests {
     }
 
     /// Roundtrip complet emission -> serveur -> fetch -> dechiffrement, avec vraie
-    /// crypto. Gated : ne tourne que si CLIPD_TEST_TOKEN + CLIPD_TEST_DEVICE + URL sont
+    /// crypto. Gated : ne tourne que si MIMOE_TEST_TOKEN + MIMOE_TEST_DEVICE + URL sont
     /// definis ET un serveur tourne. Sinon skip.
     #[test]
     fn emit_then_fetch_decrypts() {
         let (Ok(token), Ok(device), Ok(url)) = (
-            std::env::var("CLIPD_TEST_TOKEN"),
-            std::env::var("CLIPD_TEST_DEVICE"),
-            std::env::var("CLIPD_TEST_URL"),
+            std::env::var("MIMOE_TEST_TOKEN"),
+            std::env::var("MIMOE_TEST_DEVICE"),
+            std::env::var("MIMOE_TEST_URL"),
         ) else {
             eprintln!("skip: env de test non defini");
             return;

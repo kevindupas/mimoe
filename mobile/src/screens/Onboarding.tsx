@@ -84,7 +84,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
 
         <View style={s.fields}>
           {step === 1 && (
-            <TextInput style={s.input} placeholder="https://clipd.exemple.com" placeholderTextColor={p.textFaint}
+            <TextInput style={s.input} placeholder="https://sync.mimoe.app" placeholderTextColor={p.textFaint}
               autoCapitalize="none" autoCorrect={false} keyboardType="url" value={server} onChangeText={setServer} />
           )}
           {step === 2 && (

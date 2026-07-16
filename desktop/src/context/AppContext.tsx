@@ -32,10 +32,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<View>("history");
   const [config, setConfig] = useState<FrontendConfig | null>(null);
   const [soundOn, setSoundOnState] = useState(
-    () => localStorage.getItem("clipd_sound") !== "off",
+    () => localStorage.getItem("mimoe_sound") !== "off",
   );
   const [paused, setPausedState] = useState(
-    () => localStorage.getItem("clipd_paused") === "on",
+    () => localStorage.getItem("mimoe_paused") === "on",
   );
 
   // Bootstrap : configuré → historique, sinon onboarding.
@@ -61,12 +61,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setSoundOn = useCallback((on: boolean) => {
     setSoundOnState(on);
-    localStorage.setItem("clipd_sound", on ? "on" : "off");
+    localStorage.setItem("mimoe_sound", on ? "on" : "off");
   }, []);
 
   const setPaused = useCallback((on: boolean) => {
     setPausedState(on);
-    localStorage.setItem("clipd_paused", on ? "on" : "off");
+    localStorage.setItem("mimoe_paused", on ? "on" : "off");
     tauri.setPaused(on).catch((e) => console.error("set_paused", e));
   }, []);
 

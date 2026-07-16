@@ -425,7 +425,7 @@ function detectSystemLanguage(): Lang {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [languageSetting, setLanguageSettingState] = useState<LangSetting>(() => {
-    return (localStorage.getItem("clipd_lang") as LangSetting) || "system";
+    return (localStorage.getItem("mimoe_lang") as LangSetting) || "system";
   });
 
   const [detectedLanguage, setDetectedLanguage] = useState<Lang>(detectSystemLanguage);
@@ -448,7 +448,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguageSetting = (lang: LangSetting) => {
     setLanguageSettingState(lang);
-    localStorage.setItem("clipd_lang", lang);
+    localStorage.setItem("mimoe_lang", lang);
   };
 
   const t = (key: keyof typeof translations.fr): string => {

@@ -7,7 +7,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-#[Signature('clipd:purge')]
+#[Signature('mimoe:purge')]
 #[Description('Purge les clips expires (TTL depasse).')]
 class PurgeExpiredClips extends Command
 {

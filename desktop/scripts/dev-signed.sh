@@ -16,14 +16,14 @@ trap cleanup EXIT INT TERM
 # 1. Vite (HMR) si pas déjà lancé.
 if ! lsof -iTCP:1420 -sTCP:LISTEN -P >/dev/null 2>&1; then
   echo "→ démarrage de vite (HMR)…"
-  npm run dev >/tmp/clipd-vite.log 2>&1 &
+  npm run dev >/tmp/mimoe-vite.log 2>&1 &
   VITE_PID=$!
   for _ in $(seq 1 60); do
     lsof -iTCP:1420 -sTCP:LISTEN -P >/dev/null 2>&1 && break
     sleep 0.5
   done
   if ! lsof -iTCP:1420 -sTCP:LISTEN -P >/dev/null 2>&1; then
-    echo "vite n'a pas démarré (voir /tmp/clipd-vite.log)" >&2
+    echo "vite n'a pas démarré (voir /tmp/mimoe-vite.log)" >&2
     exit 1
   fi
 else
@@ -39,5 +39,5 @@ echo "→ signature…"
 ./scripts/sign-dev.sh
 
 # 4. Lancement.
-echo "→ lancement de Clipd…"
-./src-tauri/target/debug/clipd
+echo "→ lancement de Mimoe…"
+./src-tauri/target/debug/mimoe

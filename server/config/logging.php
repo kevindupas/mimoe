@@ -87,7 +87,7 @@ return [
         'discord' => [
             'driver' => 'slack',
             'url' => env('DISCORD_WEBHOOK_URL'),
-            'username' => 'Clipd',
+            'username' => 'Mimoe',
             'emoji' => ':rotating_light:',
             'level' => 'error', // erreurs + critical seulement, pas le bruit
             'replace_placeholders' => true,

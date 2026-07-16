@@ -120,7 +120,7 @@ export function OnboardingView() {
           fields: (
             <ObField
               data-ob-focus
-              placeholder="https://clipd.exemple.com"
+              placeholder="https://sync.mimoe.app"
               spellCheck={false}
               value={data.server}
               onChange={(e) => setField("server", e.target.value)}

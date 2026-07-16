@@ -20,7 +20,7 @@ const ThemeContext = createContext<ThemeApi | null>(null);
 /** Applique le thème (system/light/dark) via l'attribut data-theme sur <html>. */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeSetting, setThemeState] = useState<ThemeSetting>(
-    () => (localStorage.getItem("clipd_theme") as ThemeSetting) || "system",
+    () => (localStorage.getItem("mimoe_theme") as ThemeSetting) || "system",
   );
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setThemeSetting = useCallback((t: ThemeSetting) => {
     setThemeState(t);
-    localStorage.setItem("clipd_theme", t);
+    localStorage.setItem("mimoe_theme", t);
   }, []);
 
   const api = useMemo(() => ({ themeSetting, setThemeSetting }), [themeSetting, setThemeSetting]);

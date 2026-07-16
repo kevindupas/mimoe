@@ -35,7 +35,7 @@ class AuthTest extends TestCase
 
     public function test_register_blocked_when_registration_disabled(): void
     {
-        config(['clipd.registration_enabled' => false]);
+        config(['mimoe.registration_enabled' => false]);
         $this->postJson('/api/register', $this->payload())->assertStatus(403);
         $this->assertDatabaseCount('users', 0);
     }

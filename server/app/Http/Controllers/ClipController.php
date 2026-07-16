@@ -17,7 +17,7 @@ class ClipController extends Controller
             ->where(fn ($q) => $q->where('expires_at', '>', now())->orWhere('pinned', true))
             ->orderByDesc('pinned')
             ->orderByDesc('created_at')
-            ->limit(config('clipd.max_clips', 100))
+            ->limit(config('mimoe.max_clips', 100))
             ->get();
 
         return response()->json(['data' => $clips]);
@@ -72,7 +72,7 @@ class ClipController extends Controller
             'nonce' => $data['nonce'],
             'is_sensitive' => $data['is_sensitive'] ?? false,
             'created_at' => Carbon::parse($data['created_at']),
-            'expires_at' => now()->addHours((int) config('clipd.ttl_hours', 24)),
+            'expires_at' => now()->addHours((int) config('mimoe.ttl_hours', 24)),
         ]);
 
         $this->enforceMaxClips($userId);
@@ -125,7 +125,7 @@ class ClipController extends Controller
      * (+ leurs blobs) et prévient les clients pour qu'ils retirent ces ids live. */
     protected function enforceMaxClips(int $userId): void
     {
-        $max = (int) config('clipd.max_clips', 50);
+        $max = (int) config('mimoe.max_clips', 50);
         // Les clips épinglés sont hors-cap : jamais évincés, ne comptent pas dans le N.
         $keep = Clip::where('user_id', $userId)
             ->where('pinned', false)

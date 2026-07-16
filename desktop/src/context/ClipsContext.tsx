@@ -34,7 +34,7 @@ const ClipsContext = createContext<ClipsApi | null>(null);
 
 function loadHiddenSet(): Set<string> {
   try {
-    return new Set(JSON.parse(localStorage.getItem("clipd_hidden") || "[]"));
+    return new Set(JSON.parse(localStorage.getItem("mimoe_hidden") || "[]"));
   } catch {
     return new Set();
   }
@@ -153,7 +153,7 @@ export function ClipsProvider({
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      localStorage.setItem("clipd_hidden", JSON.stringify([...next]));
+      localStorage.setItem("mimoe_hidden", JSON.stringify([...next]));
       return next;
     });
   }, []);

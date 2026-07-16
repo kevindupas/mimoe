@@ -224,7 +224,7 @@ async fn copy_file(state: State<'_, AppState>, blob_id: String, name: String) ->
     };
 
     // Fichier temporaire avec le vrai nom (pour que le collage garde le bon nom).
-    let dir = std::env::temp_dir().join("clipd-paste");
+    let dir = std::env::temp_dir().join("mimoe-paste");
     std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir tmp: {e}"))?;
     let tmp = dir.join(&name);
     std::fs::write(&tmp, &raw).map_err(|e| format!("write tmp: {e}"))?;

@@ -10,7 +10,7 @@ RUN { \
     echo "post_max_size=100M"; \
     echo "upload_max_filesize=100M"; \
     echo "memory_limit=512M"; \
-  } > /usr/local/etc/php/conf.d/clipd.ini
+  } > /usr/local/etc/php/conf.d/mimoe.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

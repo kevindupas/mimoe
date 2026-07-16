@@ -69,7 +69,7 @@ fn run_loop(app: AppHandle) {
 fn session(app: &AppHandle, cfg: &store::Config, token: &str) -> Result<(), String> {
     let scheme = if cfg.reverb_scheme == "https" { "wss" } else { "ws" };
     let url = format!(
-        "{scheme}://{}:{}/app/{}?protocol=7&client=rust-clipd&version=1.0",
+        "{scheme}://{}:{}/app/{}?protocol=7&client=rust-mimoe&version=1.0",
         cfg.reverb_host, cfg.reverb_port, cfg.reverb_app_key
     );
 

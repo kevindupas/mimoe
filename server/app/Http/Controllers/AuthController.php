@@ -15,7 +15,7 @@ class AuthController extends Controller
     public function register(Request $request): JsonResponse
     {
         // Instance privée : inscription fermée (les self-hosters gardent le défaut ouvert).
-        if (! config('clipd.registration_enabled', true)) {
+        if (! config('mimoe.registration_enabled', true)) {
             return response()->json(['message' => 'Les inscriptions sont fermées sur ce serveur.'], 403);
         }
 

@@ -130,7 +130,7 @@ class ClipTest extends TestCase
 
     public function test_enforces_max_clips_cap(): void
     {
-        config(['clipd.max_clips' => 50]);
+        config(['mimoe.max_clips' => 50]);
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -149,7 +149,7 @@ class ClipTest extends TestCase
 
     public function test_pinned_clip_survives_cap_and_ttl(): void
     {
-        config(['clipd.max_clips' => 5]);
+        config(['mimoe.max_clips' => 5]);
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 

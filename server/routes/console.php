@@ -9,4 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // Purge TTL : toutes les 10 min, supprime les clips expires.
-Schedule::command('clipd:purge')->everyTenMinutes();
+Schedule::command('mimoe:purge')->everyTenMinutes();

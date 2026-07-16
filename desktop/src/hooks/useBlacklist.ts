@@ -7,8 +7,8 @@ interface AppRef {
   icon?: string | null;
 }
 
-const NAMES_KEY = "clipd_blacklist_names";
-const ICONS_KEY = "clipd_blacklist_icons";
+const NAMES_KEY = "mimoe_blacklist_names";
+const ICONS_KEY = "mimoe_blacklist_icons";
 
 function loadMap(key: string): Record<string, string> {
   try {

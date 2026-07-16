@@ -42,7 +42,7 @@ services:
     ports:
       - "${REVERB_BIND:-0.0.0.0}:${REVERB_HOST_PORT:-8080}:8080"
 
-  # Purge TTL (toutes les minutes le scheduler déclenche clipd:purge).
+  # Purge TTL (toutes les minutes le scheduler déclenche mimoe:purge).
   scheduler:
     build: .
     restart: unless-stopped

@@ -31,7 +31,7 @@ class PurgeTest extends TestCase
         Blob::create(['id' => (string) Str::uuid(), 'user_id' => $u->id, 'data' => 'd', 'nonce' => 'n', 'expires_at' => now()->subHour()]);
         Blob::create(['id' => (string) Str::uuid(), 'user_id' => $u->id, 'data' => 'd', 'nonce' => 'n', 'expires_at' => now()->addDay()]);
 
-        $this->artisan('clipd:purge')->assertSuccessful();
+        $this->artisan('mimoe:purge')->assertSuccessful();
 
         $this->assertDatabaseHas('clips', ['id' => $fresh->id]);
         $this->assertDatabaseMissing('clips', ['id' => $expired->id]);
