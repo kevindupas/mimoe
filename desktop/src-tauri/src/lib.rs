@@ -3,6 +3,7 @@ mod blobz;
 mod clipboard;
 mod crypto;
 mod realtime;
+mod seed;
 mod store;
 
 use std::collections::HashSet;
@@ -63,6 +64,24 @@ fn set_paused(state: State<AppState>, paused: bool) {
     state.paused.store(paused, Ordering::Relaxed);
 }
 
+/// Genere une seed de 12 mots (premier appareil). Ne quitte jamais la machine.
+#[tauri::command]
+fn generate_seed() -> Result<Vec<String>, String> {
+    seed::generate()
+}
+
+/// Valide une seed saisie (wordlist + checksum) avant toute tentative d'appairage.
+#[tauri::command]
+fn validate_seed(words: String) -> Result<(), String> {
+    seed::validate(&words)
+}
+
+/// Wordlist BIP39, pour l'autocompletion de la saisie.
+#[tauri::command]
+fn seed_wordlist() -> Vec<String> {
+    seed::wordlist()
+}
+
 /// Liste des apps "normales" en cours (pour le selecteur de blacklist).
 #[tauri::command]
 fn list_running_apps() -> Vec<apps::RunningApp> {
@@ -111,7 +130,10 @@ fn setup(
     reverb_port: u16,
     reverb_scheme: String,
 ) -> Result<(), String> {
-    let key = crypto::derive_key(&passphrase)?;
+    // Point de passage unique de la derivation : la normalisation vit ici pour que
+    // la cle ne depende pas du formatage de la saisie (casse, espaces). Le mobile
+    // doit appliquer exactement la meme, sinon les cles divergent silencieusement.
+    let key = crypto::derive_key(&seed::normalize(&passphrase))?;
 
     store::save_encryption_key(&key)?;
     store::save_device_token(&device_token)?;
@@ -367,6 +389,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             is_configured,
             set_paused,
+            generate_seed,
+            validate_seed,
+            seed_wordlist,
             list_running_apps,
             list_installed_apps,
             get_blacklist,

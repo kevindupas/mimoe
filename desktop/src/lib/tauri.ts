@@ -6,6 +6,11 @@ import type { FrontendConfig } from "./types";
 export const tauri = {
   isConfigured: () => invoke<boolean>("is_configured"),
   setPaused: (paused: boolean) => invoke("set_paused", { paused }),
+  /** Génère la seed de 12 mots (premier appareil). Ne quitte jamais la machine. */
+  generateSeed: () => invoke<string[]>("generate_seed"),
+  /** Valide une seed saisie (wordlist + checksum) avant d'appairer. Rejette avec le motif. */
+  validateSeed: (words: string) => invoke<void>("validate_seed", { words }),
+  seedWordlist: () => invoke<string[]>("seed_wordlist"),
   getConfig: () => invoke<FrontendConfig>("get_config"),
   setup: (args: {
     serverUrl: string;

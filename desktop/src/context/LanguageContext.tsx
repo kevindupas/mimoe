@@ -108,6 +108,21 @@ const translations = {
     passphrasePlaceholder: "Passphrase partagée",
     onboardingCta3Busy: "Connexion…",
     onboardingCta3: "Terminer",
+
+    seedRevealTitle: "Note ces 12 mots",
+    seedRevealSub: "Ils dérivent ta clé de chiffrement. Sans eux, aucun autre appareil ne pourra lire ton presse-papier.",
+    seedRevealWarning:
+      "Écris-les sur papier. Évite la capture d'écran : elle part dans iCloud ou Google Photos, et ta clé avec.",
+    seedRevealCta: "Je les ai notés",
+    seedQuizTitle: "Vérifions",
+    seedQuizSub: "Recopie les mots demandés pour confirmer que tu les as bien notés.",
+    seedQuizWord: "Mot",
+    seedInputTitle: "Ta seed phrase",
+    seedInputSub:
+      "Saisis les 12 mots affichés lors de la création de ton compte. C'est eux qui dérivent ta clé de chiffrement.",
+    seedInputPlaceholder: "Tes 12 mots, séparés par des espaces",
+    seedInputUnknown: "Hors liste :",
+    seedInputCta: "Se connecter",
   },
   en: {
     // SearchHeader
@@ -206,6 +221,20 @@ const translations = {
     passphrasePlaceholder: "Shared passphrase",
     onboardingCta3Busy: "Connecting...",
     onboardingCta3: "Finish",
+
+    seedRevealTitle: "Write down these 12 words",
+    seedRevealSub: "They derive your encryption key. Without them, no other device can read your clipboard.",
+    seedRevealWarning:
+      "Write them on paper. Avoid screenshots: they end up in iCloud or Google Photos, and your key with them.",
+    seedRevealCta: "I wrote them down",
+    seedQuizTitle: "Let's check",
+    seedQuizSub: "Type the requested words to confirm you saved them.",
+    seedQuizWord: "Word",
+    seedInputTitle: "Your seed phrase",
+    seedInputSub: "Enter the 12 words shown when you created your account. They derive your encryption key.",
+    seedInputPlaceholder: "Your 12 words, separated by spaces",
+    seedInputUnknown: "Not in list:",
+    seedInputCta: "Sign in",
   },
   es: {
     // SearchHeader
@@ -304,6 +333,20 @@ const translations = {
     passphrasePlaceholder: "Frase de contraseña compartida",
     onboardingCta3Busy: "Conectando...",
     onboardingCta3: "Terminar",
+
+    seedRevealTitle: "Anota estas 12 palabras",
+    seedRevealSub: "Derivan tu clave de cifrado. Sin ellas, ningún otro dispositivo podrá leer tu portapapeles.",
+    seedRevealWarning:
+      "Escríbelas en papel. Evita la captura de pantalla: acaba en iCloud o Google Photos, y tu clave con ella.",
+    seedRevealCta: "Ya las anoté",
+    seedQuizTitle: "Comprobemos",
+    seedQuizSub: "Escribe las palabras solicitadas para confirmar que las has anotado.",
+    seedQuizWord: "Palabra",
+    seedInputTitle: "Tu frase semilla",
+    seedInputSub: "Escribe las 12 palabras mostradas al crear tu cuenta. Son las que derivan tu clave de cifrado.",
+    seedInputPlaceholder: "Tus 12 palabras, separadas por espacios",
+    seedInputUnknown: "Fuera de lista:",
+    seedInputCta: "Iniciar sesión",
   },
   pt: {
     // SearchHeader
@@ -402,6 +445,20 @@ const translations = {
     passphrasePlaceholder: "Frase secreta compartilhada",
     onboardingCta3Busy: "Conectando...",
     onboardingCta3: "Terminar",
+
+    seedRevealTitle: "Anote estas 12 palavras",
+    seedRevealSub: "Elas derivam sua chave de criptografia. Sem elas, nenhum outro dispositivo poderá ler sua área de transferência.",
+    seedRevealWarning:
+      "Escreva-as no papel. Evite a captura de tela: ela vai para o iCloud ou o Google Fotos, e sua chave junto.",
+    seedRevealCta: "Já anotei",
+    seedQuizTitle: "Vamos conferir",
+    seedQuizSub: "Digite as palavras solicitadas para confirmar que você as anotou.",
+    seedQuizWord: "Palavra",
+    seedInputTitle: "Sua frase semente",
+    seedInputSub: "Digite as 12 palavras exibidas na criação da sua conta. São elas que derivam sua chave de criptografia.",
+    seedInputPlaceholder: "Suas 12 palavras, separadas por espaços",
+    seedInputUnknown: "Fora da lista:",
+    seedInputCta: "Entrar",
   },
 };
 

@@ -6,8 +6,21 @@ import { cx } from "../../lib/cx";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
 import { IlluDevice, IlluLock, IlluServer, IlluSync } from "./Illustrations";
+import { SeedInput } from "./SeedInput";
+import { SeedQuiz } from "./SeedQuiz";
+import { SeedReveal } from "./SeedReveal";
 import { useLanguage } from "../../context/LanguageContext";
-import type { InputHTMLAttributes } from "react";
+import type { InputHTMLAttributes, ReactNode } from "react";
+
+interface StepContent {
+  illu: ReactNode;
+  title: string;
+  sub: string;
+  fields: ReactNode;
+  /** Les écrans seed débordent des 280px des champs classiques. */
+  wide?: boolean;
+  cta: string;
+}
 
 function ObField(props: InputHTMLAttributes<HTMLInputElement>) {
   return (
@@ -23,13 +36,28 @@ export function OnboardingView() {
   const { onPaired } = useApp();
   const { t } = useLanguage();
   const ob = useOnboarding(onPaired);
-  const { step, mode, data, error, busy, setField, toggleMode, back, next } = ob;
+  const {
+    step,
+    mode,
+    data,
+    error,
+    busy,
+    words,
+    seedPhase,
+    quizPositions,
+    quizAnswers,
+    setField,
+    setQuizAnswer,
+    toggleMode,
+    back,
+    next,
+  } = ob;
 
   useEffect(() => {
     requestAnimationFrame(() =>
       document.querySelector<HTMLInputElement>("[data-ob-focus]")?.focus(),
     );
-  }, [step, mode]);
+  }, [step, mode, seedPhase]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -78,15 +106,27 @@ export function OnboardingView() {
       </div>
 
       <div
-        key={step}
+        key={`${step}-${seedPhase}`}
         className="anim-ob-in flex flex-1 flex-col items-center justify-center gap-1.5 px-8 pb-4 pt-2 text-center"
       >
-        <div className="mb-2 grid h-[120px] place-items-center">{content.illu}</div>
+        {/* Les écrans seed n'ont pas d'illustration : les 12 mots prennent la place. */}
+        {content.illu && (
+          <div className="mb-2 grid h-[120px] place-items-center">{content.illu}</div>
+        )}
         <h1 className="text-balance text-[22px] font-bold leading-tight tracking-tight text-text">
           {content.title}
         </h1>
         <p className="mt-1.5 max-w-[290px] text-[13px] leading-relaxed text-dim">{content.sub}</p>
-        {content.fields && <div className="mt-5 flex w-full max-w-[280px] flex-col gap-2.5">{content.fields}</div>}
+        {content.fields && (
+          <div
+            className={cx(
+              "mt-5 flex w-full flex-col gap-2.5",
+              content.wide ? "max-w-[340px]" : "max-w-[280px]",
+            )}
+          >
+            {content.fields}
+          </div>
+        )}
         {error && (
           <div className="mb-1 mt-3 max-w-[280px] rounded-md bg-danger-soft px-3 py-2 text-[11.5px] font-medium text-danger border border-danger/10">
             {error}
@@ -102,7 +142,7 @@ export function OnboardingView() {
     </div>
   );
 
-  function stepContent() {
+  function stepContent(): StepContent {
     switch (step) {
       case 0:
         return {
@@ -167,21 +207,42 @@ export function OnboardingView() {
           cta: t("onboardingCta2"),
         };
       default:
-        return {
-          illu: <IlluLock />,
-          title: t("onboardingTitle3"),
-          sub: t("onboardingSub3"),
-          fields: (
-            <ObField
-              data-ob-focus
-              type="password"
-              placeholder={t("passphrasePlaceholder")}
-              value={data.passphrase}
-              onChange={(e) => setField("passphrase", e.target.value)}
-            />
-          ),
-          cta: busy ? t("onboardingCta3Busy") : t("onboardingCta3"),
-        };
+        return seedStep();
     }
+  }
+
+  /** Étape 3 : seed générée + quiz pour un nouveau compte, saisie pour un appareil de plus. */
+  function seedStep(): StepContent {
+    if (mode === "login") {
+      return {
+        illu: <IlluLock />,
+        title: t("seedInputTitle"),
+        sub: t("seedInputSub"),
+        fields: <SeedInput value={data.passphrase} onChange={(v) => setField("passphrase", v)} />,
+        cta: busy ? t("onboardingCta3Busy") : t("seedInputCta"),
+      };
+    }
+
+    if (seedPhase === "reveal") {
+      return {
+        illu: null,
+        title: t("seedRevealTitle"),
+        sub: t("seedRevealSub"),
+        fields: <SeedReveal words={words} />,
+        wide: true,
+        cta: t("seedRevealCta"),
+      };
+    }
+
+    return {
+      illu: null,
+      title: t("seedQuizTitle"),
+      sub: t("seedQuizSub"),
+      fields: (
+        <SeedQuiz positions={quizPositions} answers={quizAnswers} onAnswer={setQuizAnswer} />
+      ),
+      wide: true,
+      cta: busy ? t("onboardingCta3Busy") : t("onboardingCta3"),
+    };
   }
 }
