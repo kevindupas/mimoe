@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Clipd",
-    "slug": "clipd",
+    "name": "Mimoe",
+    "slug": "mimoe",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "clipd",
+    "scheme": "mimoe",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.clipd"
+      "bundleIdentifier": "app.mimoe"
     },
     "android": {
-      "package": "app.clipd",
+      "package": "app.mimoe",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

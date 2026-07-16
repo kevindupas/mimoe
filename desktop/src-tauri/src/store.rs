@@ -9,7 +9,7 @@ use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const KEYCHAIN_SERVICE: &str = "app.clipd";
+const KEYCHAIN_SERVICE: &str = "app.mimoe";
 const KC_DEVICE_TOKEN: &str = "device_token";
 const KC_ENCRYPTION_KEY: &str = "encryption_key";
 
@@ -30,7 +30,7 @@ pub struct Config {
 
 fn config_path() -> Result<PathBuf, String> {
     let mut dir = dirs_config_dir()?;
-    dir.push("app.clipd");
+    dir.push("app.mimoe");
     std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir config: {e}"))?;
     dir.push("config.json");
     Ok(dir)
@@ -45,7 +45,7 @@ fn dirs_config_dir() -> Result<PathBuf, String> {
 /// Dossier de cache des images déchiffrées (une image = un fichier local, déchiffré
 /// une seule fois puis servi via file://). Doit matcher le scope assetProtocol.
 pub fn image_cache_dir() -> Result<PathBuf, String> {
-    let dir = dirs_config_dir()?.join("app.clipd").join("clipimg");
+    let dir = dirs_config_dir()?.join("app.mimoe").join("clipimg");
     std::fs::create_dir_all(&dir).map_err(|e| format!("mkdir clipimg: {e}"))?;
     Ok(dir)
 }

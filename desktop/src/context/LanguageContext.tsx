@@ -68,7 +68,7 @@ const translations = {
     themeLight: "Clair",
     themeDark: "Sombre",
     launchAtLogin: "Ouvrir au démarrage",
-    launchAtLoginDesc: "Lance Clipd à la connexion",
+    launchAtLoginDesc: "Lance Mimoe à la connexion",
     security: "Sécurité",
     securityDesc1: "Les copies marquées sensibles (mots de passe) sont ignorées automatiquement — jamais chiffrées ni envoyées.",
     securityDesc2: "Historique : 24 h ou 100 derniers clips. Le serveur ne voit que du contenu chiffré.",
@@ -89,7 +89,7 @@ const translations = {
     onboardingCta0: "Commencer",
     
     onboardingTitle1: "Ton serveur",
-    onboardingSub1: "L'adresse de ton instance Clipd. C'est le seul point de rendez-vous — il ne voit jamais tes données en clair.",
+    onboardingSub1: "L'adresse de ton instance Mimoe. C'est le seul point de rendez-vous — il ne voit jamais tes données en clair.",
     onboardingCta1: "Continuer",
     
     onboardingTitle2Register: "Crée ton compte",
@@ -166,7 +166,7 @@ const translations = {
     themeLight: "Light",
     themeDark: "Dark",
     launchAtLogin: "Launch at login",
-    launchAtLoginDesc: "Start Clipd when you log in",
+    launchAtLoginDesc: "Start Mimoe when you log in",
     security: "Security",
     securityDesc1: "Copies marked as sensitive (passwords) are ignored automatically — never encrypted or sent.",
     securityDesc2: "History: 24h or last 100 clips. The server only sees encrypted content.",
@@ -187,7 +187,7 @@ const translations = {
     onboardingCta0: "Get Started",
     
     onboardingTitle1: "Your server",
-    onboardingSub1: "The URL of your Clipd instance. It is the only meeting point — it never sees your clear data.",
+    onboardingSub1: "The URL of your Mimoe instance. It is the only meeting point — it never sees your clear data.",
     onboardingCta1: "Continue",
     
     onboardingTitle2Register: "Create your account",
@@ -264,7 +264,7 @@ const translations = {
     themeLight: "Claro",
     themeDark: "Oscuro",
     launchAtLogin: "Abrir al iniciar sesión",
-    launchAtLoginDesc: "Inicia Clipd al iniciar sesión",
+    launchAtLoginDesc: "Inicia Mimoe al iniciar sesión",
     security: "Seguridad",
     securityDesc1: "Las copias marcadas como sensibles (contraseñas) se ignoran automáticamente; nunca se cifran ni se envían.",
     securityDesc2: "Historial: 24 h o los últimos 100 clips. El servidor solo ve contenido cifrado.",
@@ -285,7 +285,7 @@ const translations = {
     onboardingCta0: "Empezar",
     
     onboardingTitle1: "Tu servidor",
-    onboardingSub1: "La dirección de tu instancia de Clipd. Es el único punto de encuentro; nunca ve tus datos en claro.",
+    onboardingSub1: "La dirección de tu instancia de Mimoe. Es el único punto de encuentro; nunca ve tus datos en claro.",
     onboardingCta1: "Continuar",
     
     onboardingTitle2Register: "Crea tu cuenta",
@@ -362,7 +362,7 @@ const translations = {
     themeLight: "Claro",
     themeDark: "Escuro",
     launchAtLogin: "Abrir ao iniciar sessão",
-    launchAtLoginDesc: "Inicia o Clipd ao entrar",
+    launchAtLoginDesc: "Inicia o Mimoe ao entrar",
     security: "Segurança",
     securityDesc1: "As cópias marcadas como sensíveis (senhas) são ignoradas automaticamente — nunca criptografadas ou enviadas.",
     securityDesc2: "Histórico: 24h ou últimos 100 clips. O servidor só vê conteúdo criptografado.",
@@ -383,7 +383,7 @@ const translations = {
     onboardingCta0: "Começar",
     
     onboardingTitle1: "Seu servidor",
-    onboardingSub1: "O endereço da sua instância do Clipd. É o único ponto de encontro — ele nunca vê seus dados em texto simples.",
+    onboardingSub1: "O endereço da sua instância do Mimoe. É o único ponto de encontro — ele nunca vê seus dados em texto simples.",
     onboardingCta1: "Continuar",
     
     onboardingTitle2Register: "Crie sua conta",

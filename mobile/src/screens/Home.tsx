@@ -130,7 +130,7 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
   return (
     <View style={[s.root, { paddingTop: insets.top }]}>
       <View style={s.header}>
-        <View style={s.brand}><View style={s.dot} /><Text style={s.brandTxt}>Clipd</Text></View>
+        <View style={s.brand}><View style={s.dot} /><Text style={s.brandTxt}>Mimoe</Text></View>
       </View>
 
       <FlatList
@@ -146,7 +146,7 @@ export default function Home({ p, cfg, clips, refreshing, onRefresh, onSwipeDele
           <View style={s.empty}>
             <Ionicons name="clipboard-outline" size={40} color={p.border} />
             <Text style={s.emptyTitle}>Rien pour l'instant</Text>
-            <Text style={s.emptySub}>Partage du texte ou une image → Clipd.</Text>
+            <Text style={s.emptySub}>Partage du texte ou une image → Mimoe.</Text>
           </View>
         }
         renderItem={({ item }) =>

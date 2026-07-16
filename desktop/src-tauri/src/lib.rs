@@ -422,7 +422,7 @@ pub fn run() {
             }
 
             // Icone menu bar avec menu clic-droit.
-            let quit = MenuItem::with_id(app, "quit", "Quitter Clipd", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quitter Mimoe", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Ouvrir l'historique", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &quit])?;
 

@@ -56,7 +56,7 @@ export function OnboardingView() {
           </Button>
         ) : (
           <span className="inline-flex items-center gap-2 text-sm font-semibold text-text">
-            <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Clipd
+            <span className="h-2.5 w-2.5 rounded-full bg-accent" /> Mimoe
           </span>
         )}
         <div className="flex gap-[5px] items-center">

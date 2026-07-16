@@ -83,7 +83,7 @@ export default function App() {
           if (text) {
             const { ciphertext, nonce } = encrypt(key, text);
             await postClip(c.serverUrl, c.deviceToken, c.deviceId, ciphertext, nonce);
-            if (Platform.OS === "android") ToastAndroid.show("Envoyé à Clipd", ToastAndroid.SHORT);
+            if (Platform.OS === "android") ToastAndroid.show("Envoyé à Mimoe", ToastAndroid.SHORT);
           }
         }
       } catch {

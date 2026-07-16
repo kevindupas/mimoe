@@ -1,6 +1,6 @@
 import type { AuthMode, FrontendConfig, RawClip } from "./types";
 
-/** Appels HTTP au serveur Clipd (le serveur ne voit que du chiffré). */
+/** Appels HTTP au serveur Mimoe (le serveur ne voit que du chiffré). */
 
 export async function fetchClips(config: FrontendConfig): Promise<RawClip[]> {
   const res = await fetch(`${config.server_url}/api/clips`, {

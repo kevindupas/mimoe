@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Clipd",
+  "productName": "Mimoe",
   "version": "0.1.0",
-  "identifier": "app.clipd.desktop",
+  "identifier": "app.mimoe.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -14,7 +14,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Clipd",
+        "title": "Mimoe",
         "label": "main",
         "width": 420,
         "height": 620,
@@ -30,7 +30,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/Library/Application Support/app.clipd/clipimg/**"]
+        "scope": ["$HOME/Library/Application Support/app.mimoe/clipimg/**"]
       }
     }
   },

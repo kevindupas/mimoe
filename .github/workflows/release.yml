@@ -1,4 +1,4 @@
-name: Release Clipd (desktop)
+name: Release Mimoe (desktop)
 
 # Déclenché en poussant un tag de version, ex. `git tag v0.2.0 && git push --tags`.
 # Construit l'app macOS, signe l'artifact d'update (clé Tauri), publie une release
@@ -39,7 +39,7 @@ jobs:
         with:
           projectPath: desktop
           tagName: ${{ github.ref_name }}
-          releaseName: "Clipd ${{ github.ref_name }}"
+          releaseName: "Mimoe ${{ github.ref_name }}"
           releaseBody: "Mise à jour automatique via l'app. Au premier lancement : clic-droit > Ouvrir."
           releaseDraft: false
           prerelease: false

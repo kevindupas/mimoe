@@ -1,4 +1,4 @@
-// Appels HTTP au serveur Clipd. Contenu chiffré en amont.
+// Appels HTTP au serveur Mimoe. Contenu chiffré en amont.
 import * as Crypto from "expo-crypto";
 
 export interface AuthResult {

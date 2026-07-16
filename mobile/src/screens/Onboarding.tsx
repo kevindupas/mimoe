@@ -26,7 +26,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
   const titles = ["Ton presse-papier, partout.", "Ton serveur", register ? "Crée ton compte" : "Connecte-toi", "La clé secrète"];
   const subs = [
     "Copie sur ton téléphone, colle sur ton ordi. Chiffré de bout en bout, sur ton propre serveur.",
-    "L'adresse de ton instance Clipd. Il ne voit jamais tes données en clair.",
+    "L'adresse de ton instance Mimoe. Il ne voit jamais tes données en clair.",
     "Ton compte relie tous tes appareils. Historique isolé, rien que le tien.",
     "Une passphrase tapée sur chacun de tes appareils. Elle chiffre tout et ne quitte jamais ce téléphone.",
   ];
@@ -66,7 +66,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
             <Ionicons name="chevron-back" size={24} color={p.text} />
           </Pressable>
         ) : (
-          <View style={s.brand}><View style={s.dot} /><Text style={s.brandTxt}>Clipd</Text></View>
+          <View style={s.brand}><View style={s.dot} /><Text style={s.brandTxt}>Mimoe</Text></View>
         )}
         <View style={s.dots}>
           {[0, 1, 2, 3].map((i) => (

@@ -1,4 +1,4 @@
-// Palette Clipd (teal), claire/sombre.
+// Palette Mimoe (teal), claire/sombre.
 export const colors = {
   light: {
     bg: "#F5F5F7",
