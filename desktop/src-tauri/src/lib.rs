@@ -1,5 +1,6 @@
 mod apps;
 mod blobz;
+mod clip_sys;
 mod clipboard;
 mod crypto;
 mod realtime;

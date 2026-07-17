@@ -14,21 +14,8 @@ use std::sync::OnceLock;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use icns::{IconFamily, IconType};
 use objc2_app_kit::{NSApplicationActivationPolicy, NSWorkspace};
-use serde::Serialize;
 
-#[derive(Serialize)]
-pub struct RunningApp {
-    pub name: String,
-    pub bundle_id: String,
-}
-
-#[derive(Serialize, Clone)]
-pub struct InstalledApp {
-    pub name: String,
-    pub bundle_id: String,
-    /// Icône en data-URI PNG (36px), ou None si extraction impossible.
-    pub icon: Option<String>,
-}
+use super::{InstalledApp, RunningApp};
 
 // --- Apps en cours / premier plan (AppKit, thread principal) ---
 

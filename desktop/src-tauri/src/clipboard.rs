@@ -1,9 +1,12 @@
-//! Emission : surveille le presse-papier macOS et emet les changements chiffres.
+//! Emission : surveille le presse-papier et emet les changements chiffres.
 //!
-//! Lecture NATIVE de NSPasteboard (pas arboard) pour deux raisons :
-//!   1. `changeCount` : detecte un changement sans comparer le texte.
-//!   2. Type `org.nspasteboard.ConcealedType` : detecte les copies marquees
-//!      "sensibles" par les gestionnaires de mots de passe -> on les IGNORE.
+//! Orchestration COMMUNE a toutes les plateformes. Les 5 operations bas niveau
+//! qui different d'un OS a l'autre (numero de sequence, lecture texte + flag
+//! sensible, chemin de fichier reference, ecriture sensible, reference de
+//! fichier) vivent dans `clip_sys`, une impl par plateforme.
+//!
+//! Le flag "sensible" (gestionnaire de mots de passe) est detecte via
+//! `clip_sys::read` et le contenu correspondant n'est jamais chiffre ni envoye.
 //!
 //! Anti-boucle : avant d'emettre, on verifie le set `recently_written`. Si le
 //! hash du contenu y est, c'est NOUS qui venons de l'ecrire (recopie depuis
@@ -13,25 +16,14 @@ use std::sync::atomic::Ordering;
 use std::thread;
 use std::time::Duration;
 
-use objc2_app_kit::NSPasteboard;
-use objc2_foundation::{NSString, NSURL};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
+use crate::clip_sys;
 use crate::{crypto, store, AppState};
 
-const CONCEALED_TYPE: &str = "org.nspasteboard.ConcealedType";
-// UTI du texte brut = valeur de NSPasteboardTypeString.
-const TEXT_UTI: &str = "public.utf8-plain-text";
-// UTI d'une reference de fichier (copie depuis le Finder).
-const FILE_URL_UTI: &str = "public.file-url";
 const POLL_MS: u64 = 500;
-
-struct Content {
-    text: Option<String>,
-    is_concealed: bool,
-}
 
 fn hash_text(text: &str) -> String {
     hash_bytes(text.as_bytes())
@@ -43,64 +35,11 @@ fn hash_bytes(bytes: &[u8]) -> String {
     format!("{:x}", h.finalize())
 }
 
-/// Logique pure (testable) : la liste des types du presse-papier contient-elle
-/// le marqueur sensible ?
-fn types_contain_concealed(types: &[String]) -> bool {
-    types.iter().any(|t| t == CONCEALED_TYPE)
-}
-
-/// Ecrit du texte en le marquant sensible (`org.nspasteboard.ConcealedType`).
-///
-/// Convention nspasteboard.org : les gestionnaires d'historique (Raycast, Maccy,
-/// Alfred) n'archivent pas ce qui la porte, et notre propre moniteur l'ignore
-/// deja. Sert a copier la seed sans la semer dans un historique en clair.
-///
-/// Elle ne couvre pas Universal Clipboard : ce n'est pas une API Apple, et rien
-/// ne garantit que Handoff la respecte.
+/// Ecrit du texte marque "sensible" : les gestionnaires d'historique ne
+/// l'archivent pas, et notre propre moniteur l'ignore. Sert a copier la seed
+/// sans la semer dans un historique en clair. Delegue a la primitive plateforme.
 pub fn write_concealed(text: &str) -> Result<(), String> {
-    // SAFETY : NSPasteboard general est accessible pour ecrire depuis le thread principal
-    // des commandes Tauri.
-    unsafe {
-        let pb = NSPasteboard::generalPasteboard();
-        pb.clearContents();
-
-        let ok = pb.setString_forType(
-            &NSString::from_str(text),
-            &NSString::from_str(TEXT_UTI),
-        );
-        if !ok {
-            return Err("ecriture presse-papier refusee".into());
-        }
-        // Le marqueur doit etre pose apres le texte : clearContents remet la liste a zero.
-        pb.setString_forType(
-            &NSString::from_str(""),
-            &NSString::from_str(CONCEALED_TYPE),
-        );
-        Ok(())
-    }
-}
-
-/// Lit le presse-papier : flag sensible + texte (None si pas de texte).
-fn read_pasteboard() -> Content {
-    // SAFETY : NSPasteboard general est accessible depuis n'importe quel thread pour lire.
-    unsafe {
-        let pb = NSPasteboard::generalPasteboard();
-
-        let mut type_names = Vec::new();
-        if let Some(types) = pb.types() {
-            for i in 0..types.count() {
-                type_names.push(types.objectAtIndex(i).to_string());
-            }
-        }
-        let is_concealed = types_contain_concealed(&type_names);
-
-        let text = pb
-            .stringForType(&NSString::from_str(TEXT_UTI))
-            .map(|s| s.to_string())
-            .filter(|t| !t.is_empty());
-
-        Content { text, is_concealed }
-    }
+    clip_sys::write_concealed(text)
 }
 
 /// Lit une image du presse-papier (données brutes, ex. capture directe).
@@ -161,28 +100,14 @@ fn is_image_mime(mime: &str) -> bool {
     mime.starts_with("image/") && mime != "image/svg+xml"
 }
 
-/// Vrai chemin du fichier reference par le presse-papier (copie Finder).
-/// Le Finder donne une URL de reference (file:///.file/id=...) : NSURL.filePathURL
-/// la resout en chemin reel avec extension (POSIX/realpath n'y arrive PAS).
-fn pasteboard_file_path() -> Option<String> {
-    // SAFETY : lecture du general pasteboard + resolution NSURL.
-    unsafe {
-        let pb = NSPasteboard::generalPasteboard();
-        let url_str = pb.stringForType(&NSString::from_str(FILE_URL_UTI))?;
-        let url = NSURL::URLWithString(&url_str)?;
-        let file_path_url = url.filePathURL()?;
-        file_path_url.path().map(|p| p.to_string())
-    }
-}
-
 /// Taille max d'un fichier synchronise (au-dela : ignore).
 const MAX_FILE_BYTES: u64 = 25 * 1024 * 1024;
 
-/// Si le presse-papier reference un FICHIER (copie depuis le Finder), on lit son
-/// contenu BRUT (aucun ré-encodage → format d'origine, GIF animé conservés) et on
-/// renvoie (hash, bytes, mime, nom, kind). kind = "image" ou "file" selon le mime.
+/// Si le presse-papier reference un FICHIER (copie depuis l'explorateur), on lit
+/// son contenu BRUT (aucun ré-encodage → format d'origine, GIF animé conservés) et
+/// on renvoie (hash, bytes, mime, nom, kind). kind = "image" ou "file" selon le mime.
 fn read_file() -> Option<(String, Vec<u8>, &'static str, String, &'static str)> {
-    let path = pasteboard_file_path()?; // chemin reel resolu (avec extension)
+    let path = clip_sys::file_path()?; // chemin reel resolu (avec extension)
     let p = std::path::Path::new(&path);
 
     let meta = std::fs::metadata(&path).ok()?;
@@ -210,15 +135,11 @@ fn read_file() -> Option<(String, Vec<u8>, &'static str, String, &'static str)> 
     Some((hash, bytes, mime, name, kind))
 }
 
-fn current_change_count() -> isize {
-    unsafe { NSPasteboard::generalPasteboard().changeCount() }
-}
-
 /// Lance le thread de surveillance. Idempotent a l'echelle de l'app (appele 1x au setup).
 pub fn start_monitor(app: AppHandle) {
     thread::spawn(move || {
-        // On part du changeCount actuel : on n'emet pas le contenu pre-existant au lancement.
-        let mut last_count = current_change_count();
+        // On part du numero de sequence actuel : on n'emet pas le contenu pre-existant au lancement.
+        let mut last_count = clip_sys::change_count();
         // Anti-doublon : hash du dernier contenu emis. Recopier le meme texte/image
         // (changeCount incremente mais contenu identique) n'envoie qu'une fois.
         let mut last_emitted: Option<String> = None;
@@ -226,7 +147,7 @@ pub fn start_monitor(app: AppHandle) {
         loop {
             thread::sleep(Duration::from_millis(POLL_MS));
 
-            let count = current_change_count();
+            let count = clip_sys::change_count();
             if count == last_count {
                 continue;
             }
@@ -250,7 +171,7 @@ pub fn start_monitor(app: AppHandle) {
                 }
             }
 
-            let content = read_pasteboard();
+            let content = clip_sys::read();
 
             // Flag sensible -> ignore par defaut (ni chiffre, ni envoye, ni stocke).
             if content.is_concealed {
@@ -278,7 +199,7 @@ pub fn start_monitor(app: AppHandle) {
 
             // Image DONNEES BRUTES (capture directe). UNIQUEMENT si ce n'est PAS une
             // copie de fichier (deja gere ci-dessus) : sinon arboard renvoie l'ICONE.
-            if pasteboard_file_path().is_none() {
+            if clip_sys::file_path().is_none() {
                 if let Some((hash, png, mime, name)) = read_clipboard_image() {
                     if consume_written(&app, &hash) {
                         continue;
@@ -314,20 +235,10 @@ pub fn start_monitor(app: AppHandle) {
     });
 }
 
-/// Ecrit une reference de FICHIER dans le presse-papier (pour coller dans Finder/apps).
+/// Place une reference de FICHIER dans le presse-papier (pour coller ailleurs).
+/// Delegue a la primitive plateforme.
 pub fn set_pasteboard_file(path: &str) -> Result<(), String> {
-    // SAFETY : ecriture du general pasteboard.
-    unsafe {
-        let pb = NSPasteboard::generalPasteboard();
-        pb.clearContents();
-        let url = NSURL::fileURLWithPath(&NSString::from_str(path));
-        let abs = url.absoluteString().ok_or("url absolue introuvable")?;
-        if pb.setString_forType(&abs, &NSString::from_str(FILE_URL_UTI)) {
-            Ok(())
-        } else {
-            Err("setString(file-url) a echoue".into())
-        }
-    }
+    clip_sys::set_file(path)
 }
 
 /// Anti-boucle : true si on vient d'ecrire ce hash (a consommer, ne pas emettre).
@@ -451,27 +362,8 @@ fn post_blob(server_url: &str, token: &str, data: &str, nonce: &str) -> Result<S
 mod tests {
     use super::*;
 
-
-
-
-    /// Securite critique : le marqueur ConcealedType (mot de passe) est detecte
-    /// -> le contenu sera ignore (jamais chiffre ni envoye).
-    #[test]
-    fn detects_concealed_flag() {
-        assert!(types_contain_concealed(&[
-            "public.utf8-plain-text".into(),
-            CONCEALED_TYPE.into(),
-        ]));
-    }
-
-    /// Un texte normal n'est PAS marque sensible.
-    #[test]
-    fn normal_text_not_concealed() {
-        assert!(!types_contain_concealed(&[
-            "public.utf8-plain-text".into(),
-            "public.html".into(),
-        ]));
-    }
+    // La detection du marqueur "sensible" est desormais testee par plateforme
+    // dans clip_sys (le format differe : ConcealedType macOS, format Win32 exclu).
 
     /// Roundtrip complet emission -> serveur -> fetch -> dechiffrement, avec vraie
     /// crypto. Gated : ne tourne que si MIMOE_TEST_TOKEN + MIMOE_TEST_DEVICE + URL sont

@@ -17,6 +17,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+# --- Dependances communes a toutes les plateformes ---
 [dependencies]
 tauri = { version = "2", features = ["tray-icon", "macos-private-api", "protocol-asset"] }
 tauri-plugin-opener = "2"
@@ -28,30 +29,42 @@ argon2 = "0.5"
 aes-gcm = "0.10"
 base64 = "0.22"
 sha2 = "0.10"
-# Stockage secret dans le Keychain macOS
-keyring = { version = "3", features = ["apple-native"] }
-# Ecriture presse-papier
+# Stockage secret : keyring choisit le coffre natif selon l'OS (feature par cible ci-dessous).
+keyring = { version = "3", default-features = false }
+# Ecriture presse-papier + lecture d'image brute (cross-platform).
 arboard = "3"
 # Encodage/decodage PNG (images du presse-papier)
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "tiff"] }
-# Effet de flou macOS (look Raycast/Spotlight)
-window-vibrancy = "0.6"
-# Emission : lecture NSPasteboard native (changeCount + type sensible), HTTP, uuid, timestamp
-objc2 = "0.5"
-objc2-app-kit = { version = "0.2", features = ["NSPasteboard", "NSWorkspace", "NSRunningApplication", "NSApplication", "NSImage"] }
-objc2-foundation = { version = "0.2", features = ["NSString", "NSArray", "NSData", "NSBundle", "NSURL"] }
 ureq = { version = "2", features = ["json"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = "0.4"
 # WebSocket NATIF (protocole Pusher/Reverb) : tourne dans un thread Rust, jamais gele
 # par le hide de fenetre (contrairement a pusher-js dans la webview WKWebView).
 tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
-plist = "1"
-icns = "0.3"
 flate2 = "1.1.9"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
 bip39 = { version = "2", features = ["rand"] }
 unicode-normalization = "0.1"
+
+# --- macOS uniquement : NSPasteboard/NSWorkspace natif + decodage .icns + Info.plist ---
+# Compile uniquement sur macOS. Sur Windows/Linux ces crates ne sont jamais tirees.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+objc2 = "0.5"
+objc2-app-kit = { version = "0.2", features = ["NSPasteboard", "NSWorkspace", "NSRunningApplication", "NSApplication", "NSImage"] }
+objc2-foundation = { version = "0.2", features = ["NSString", "NSArray", "NSData", "NSBundle", "NSURL"] }
+plist = "1"
+icns = "0.3"
+# Effet de flou macOS (look Raycast/Spotlight). Non utilise pour l'instant.
+window-vibrancy = "0.6"
+
+# --- Windows uniquement : presse-papier Win32 + fenetre active ---
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+# GetClipboardSequenceNumber + get/set typed + formats sensibles.
+clipboard-win = "5"
+# Fenetre au premier plan (equivalent frontmost) pour la blacklist.
+active-win-pos-rs = "0.8"
 
