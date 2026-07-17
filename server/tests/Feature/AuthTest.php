@@ -82,4 +82,29 @@ class AuthTest extends TestCase
         }
         $this->postJson('/api/login', $this->payload(['password' => 'nope123456']))->assertStatus(429);
     }
+
+    public function test_server_info_reports_registration_open(): void
+    {
+        config(['mimoe.registration_enabled' => true]);
+
+        $this->getJson('/api/server-info')
+            ->assertOk()
+            ->assertExactJson(['registration_enabled' => true]);
+    }
+
+    public function test_server_info_reports_registration_closed(): void
+    {
+        config(['mimoe.registration_enabled' => false]);
+
+        $this->getJson('/api/server-info')
+            ->assertOk()
+            ->assertExactJson(['registration_enabled' => false]);
+    }
+
+    public function test_server_info_needs_no_authentication(): void
+    {
+        // Le client l'appelle avant d'avoir le moindre compte : une 401 ici
+        // rendrait l'information inatteignable au moment ou elle sert.
+        $this->getJson('/api/server-info')->assertOk();
+    }
 }

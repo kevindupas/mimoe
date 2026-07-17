@@ -11,6 +11,20 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Capacités de l'instance, sans authentification.
+     *
+     * Le client l'interroge dès qu'il connaît l'URL du serveur, pour masquer la
+     * création de compte sur une instance fermée. Ne révèle rien de sensible :
+     * l'information est de toute façon déductible en appelant /register.
+     */
+    public function serverInfo(): JsonResponse
+    {
+        return response()->json([
+            'registration_enabled' => (bool) config('mimoe.registration_enabled', true),
+        ]);
+    }
+
     /** Inscription : crée le compte puis connecte l'appareil. */
     public function register(Request $request): JsonResponse
     {

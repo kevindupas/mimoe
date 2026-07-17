@@ -6,6 +6,12 @@ use App\Http\Controllers\ClipController;
 use App\Http\Controllers\PushController;
 use Illuminate\Support\Facades\Route;
 
+// Public : capacites de l'instance, avant tout compte. Permet au client de ne pas
+// proposer la creation de compte sur une instance fermee, plutot que de laisser
+// l'utilisateur remplir un formulaire pour se prendre un 403 a la fin.
+// Throttle large : appele une fois par onboarding, sans effet de bord.
+Route::middleware('throttle:60,1')->get('/server-info', [AuthController::class, 'serverInfo']);
+
 // Public : comptes. Throttle strict -> anti brute-force / spam de comptes.
 Route::middleware('throttle:6,1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);

@@ -94,5 +94,7 @@
   "seedInputSub": "Digite as 12 palavras exibidas na criação da sua conta. São elas que derivam sua chave de criptografia.",
   "seedInputPlaceholder": "Suas 12 palavras, separadas por espaços",
   "seedInputUnknown": "Fora da lista:",
-  "seedInputCta": "Entrar"
+  "seedInputCta": "Entrar",
+  "registrationClosedSub": "Os registros estão fechados neste servidor. Entre com uma conta existente.",
+  "registrationClosedNotice": "Este servidor não aceita novos registros. Você precisa de uma conta criada pelo administrador."
 }

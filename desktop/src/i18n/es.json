@@ -94,5 +94,7 @@
   "seedInputSub": "Escribe las 12 palabras mostradas al crear tu cuenta. Son las que derivan tu clave de cifrado.",
   "seedInputPlaceholder": "Tus 12 palabras, separadas por espacios",
   "seedInputUnknown": "Fuera de lista:",
-  "seedInputCta": "Iniciar sesión"
+  "seedInputCta": "Iniciar sesión",
+  "registrationClosedSub": "Los registros están cerrados en este servidor. Inicia sesión con una cuenta existente.",
+  "registrationClosedNotice": "Este servidor no acepta nuevos registros. Necesitas una cuenta creada por su administrador."
 }

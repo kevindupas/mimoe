@@ -94,5 +94,7 @@
   "seedInputSub": "Enter the 12 words shown when you created your account. They derive your encryption key.",
   "seedInputPlaceholder": "Your 12 words, separated by spaces",
   "seedInputUnknown": "Not in list:",
-  "seedInputCta": "Sign in"
+  "seedInputCta": "Sign in",
+  "registrationClosedSub": "Registrations are closed on this server. Sign in with an existing account.",
+  "registrationClosedNotice": "This server is not accepting new registrations. You need an account created by its administrator."
 }

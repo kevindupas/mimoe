@@ -42,6 +42,7 @@ export function OnboardingView() {
     data,
     error,
     busy,
+    registrationEnabled,
     words,
     seedPhase,
     quizPositions,
@@ -171,8 +172,12 @@ export function OnboardingView() {
       case 2:
         return {
           illu: <IlluDevice />,
-          title: mode === "register" ? t("onboardingTitle2Register") : t("onboardingTitle2Login"),
-          sub: t("onboardingSub2"),
+          title: registrationEnabled
+            ? mode === "register"
+              ? t("onboardingTitle2Register")
+              : t("onboardingTitle2Login")
+            : t("onboardingTitle2Login"),
+          sub: registrationEnabled ? t("onboardingSub2") : t("registrationClosedSub"),
           fields: (
             <>
               <ObField
@@ -189,19 +194,28 @@ export function OnboardingView() {
                 value={data.password}
                 onChange={(e) => setField("password", e.target.value)}
               />
-              <div className="text-[11.5px] leading-[1.5] text-faint">
-                {mode === "register" ? t("hasAccount") : t("noAccount")}{" "}
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toggleMode();
-                  }}
-                  className="font-semibold text-accent no-underline hover:underline"
-                >
-                  {mode === "register" ? t("loginLink") : t("registerLink")}
-                </a>
-              </div>
+              {/* Instance fermée : pas de bascule vers l'inscription — la proposer
+                  mènerait à un 403 après avoir fait noter les 12 mots. */}
+              {registrationEnabled ? (
+                <div className="text-[11.5px] leading-[1.5] text-faint">
+                  {mode === "register" ? t("hasAccount") : t("noAccount")}{" "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleMode();
+                    }}
+                    className="font-semibold text-accent no-underline hover:underline"
+                  >
+                    {mode === "register" ? t("loginLink") : t("registerLink")}
+                  </a>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded-[7px] border border-border bg-surface px-2.5 py-2 text-left text-[11px] leading-[1.45] text-dim">
+                  <Icon name="shield" className="mt-px h-3.5 w-3.5 shrink-0 stroke-[1.75]" />
+                  <span>{t("registrationClosedNotice")}</span>
+                </div>
+              )}
             </>
           ),
           cta: t("onboardingCta2"),

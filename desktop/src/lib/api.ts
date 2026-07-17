@@ -42,6 +42,27 @@ export async function deleteClip(config: FrontendConfig, id: string): Promise<vo
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
+/**
+ * Capacités de l'instance, interrogées dès que l'URL du serveur est connue.
+ *
+ * Une instance antérieure à cet endpoint répond 404 : on suppose alors les
+ * inscriptions ouvertes. Bloquer sur un doute empêcherait de créer un compte sur
+ * un serveur parfaitement ouvert, ce qui est pire que de laisser tenter — le
+ * /register renverra 403 le cas échéant.
+ */
+export async function fetchServerInfo(serverUrl: string): Promise<{ registrationEnabled: boolean }> {
+  try {
+    const res = await fetch(`${serverUrl}/api/server-info`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) return { registrationEnabled: true };
+    const body = await res.json();
+    return { registrationEnabled: body?.registration_enabled !== false };
+  } catch {
+    return { registrationEnabled: true };
+  }
+}
+
 export interface PairResult {
   token: string;
   user_id: number;

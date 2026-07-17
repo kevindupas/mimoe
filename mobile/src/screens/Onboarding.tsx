@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Palette } from "../theme";
-import { auth, newDeviceId } from "../api";
+import { auth, fetchServerInfo, newDeviceId } from "../api";
 import { deriveKey } from "../crypto";
 import { generateSeed, normalizeSeed, unknownWords, validateSeed } from "../seed";
 import { saveConfig } from "../store";
@@ -42,6 +42,8 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
   const [quizPositions, setQuizPositions] = useState<number[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
   const [copied, setCopied] = useState(false);
+  /** Instance fermée : on bascule en connexion et on masque la création de compte. */
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
 
   const s = styles(p);
   const seedScreen = step === 3 && register;
@@ -51,13 +53,15 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
   const titles = [
     "Ton presse-papier, partout.",
     "Ton serveur",
-    register ? "Crée ton compte" : "Connecte-toi",
+    register && registrationEnabled ? "Crée ton compte" : "Connecte-toi",
     register ? (seedPhase === "reveal" ? "Note ces 12 mots" : "Vérifions") : "Ta seed phrase",
   ];
   const subs = [
     "Copie sur ton téléphone, colle sur ton ordi. Chiffré de bout en bout, sur ton propre serveur.",
     "L'adresse de ton instance Mimoe. Il ne voit jamais tes données en clair.",
-    "Ton compte relie tous tes appareils. Historique isolé, rien que le tien.",
+    registrationEnabled
+      ? "Ton compte relie tous tes appareils. Historique isolé, rien que le tien."
+      : "Les inscriptions sont fermées sur ce serveur. Connecte-toi avec un compte existant.",
     register
       ? seedPhase === "reveal"
         ? "Ils dérivent ta clé de chiffrement. Sans eux, aucun autre appareil ne pourra lire ton presse-papier."
@@ -114,9 +118,30 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
     return finish(words.join(" "));
   }
 
+  /**
+   * Interroge l'instance dès que son URL est connue, pour ne pas laisser
+   * l'utilisateur remplir une inscription et se prendre un 403 après avoir noté
+   * ses 12 mots.
+   */
+  async function checkServer(url: string) {
+    setBusy(true);
+    try {
+      const { registrationEnabled: open } = await fetchServerInfo(url);
+      setRegistrationEnabled(open);
+      if (!open) setRegister(false);
+      setStep(2);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function next() {
     setError("");
-    if (step === 1 && !server.trim()) return setError("Renseigne le serveur.");
+    if (step === 1) {
+      const url = server.trim().replace(/\/+$/, "");
+      if (!url) return setError("Renseigne le serveur.");
+      return void checkServer(url);
+    }
     if (step === 2) {
       if (!email.trim() || !password) return setError("Email et mot de passe requis.");
       // La seed n'est générée que pour un nouveau compte ; un appareil de plus se
@@ -201,12 +226,24 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
                 autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
               <TextInput style={s.input} placeholder="Mot de passe" placeholderTextColor={p.textFaint}
                 secureTextEntry value={password} onChangeText={setPassword} />
-              <Pressable onPress={() => setRegister(!register)}>
-                <Text style={s.toggle}>
-                  {register ? "Déjà un compte ? " : "Pas de compte ? "}
-                  <Text style={s.toggleLink}>{register ? "Se connecter" : "Créer un compte"}</Text>
-                </Text>
-              </Pressable>
+              {/* Instance fermée : pas de bascule vers l'inscription — la proposer
+                  mènerait à un 403 après avoir fait noter les 12 mots. */}
+              {registrationEnabled ? (
+                <Pressable onPress={() => setRegister(!register)}>
+                  <Text style={s.toggle}>
+                    {register ? "Déjà un compte ? " : "Pas de compte ? "}
+                    <Text style={s.toggleLink}>{register ? "Se connecter" : "Créer un compte"}</Text>
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={s.closed}>
+                  <Ionicons name="shield-outline" size={14} color={p.textDim} />
+                  <Text style={s.closedTxt}>
+                    Ce serveur n'accepte pas de nouvelles inscriptions. Il te faut un compte déjà
+                    créé par son administrateur.
+                  </Text>
+                </View>
+              )}
             </>
           )}
           {step === 3 && !register && (
@@ -321,6 +358,12 @@ const styles = (p: Palette) => StyleSheet.create({
   quizCell: { width: "47%", gap: 5 },
   quizLabel: { color: p.textFaint, fontSize: 11, fontWeight: "500" },
   quizInput: { paddingVertical: 11, fontSize: 14, fontFamily: "Menlo" },
+  closed: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 4,
+    backgroundColor: p.surface, borderWidth: 1, borderColor: p.border,
+    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9,
+  },
+  closedTxt: { color: p.textDim, fontSize: 11.5, lineHeight: 16, flexShrink: 1 },
   toggle: { color: p.textDim, fontSize: 13, textAlign: "center", marginTop: 4 },
   toggleLink: { color: p.accent, fontWeight: "600" },
   error: { color: p.danger, fontSize: 13, textAlign: "center", marginTop: 14 },

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { pair } from "../lib/api";
+import { fetchServerInfo, pair } from "../lib/api";
 import { tauri } from "../lib/tauri";
 import type { AuthMode, FrontendConfig } from "../lib/types";
 
@@ -38,6 +38,9 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  /** Instance fermée : on bascule en connexion et on masque la création de compte. */
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
+
   // Étape 3, mode register.
   const [words, setWords] = useState<string[]>([]);
   const [seedPhase, setSeedPhase] = useState<SeedPhase>("reveal");
@@ -53,7 +56,25 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
   }, []);
 
   const toggleMode = useCallback(() => {
+    if (!registrationEnabled) return;
     setMode((m) => (m === "register" ? "login" : "register"));
+  }, [registrationEnabled]);
+
+  /**
+   * Interroge l'instance dès que son URL est connue, pour ne pas laisser
+   * l'utilisateur remplir un formulaire d'inscription et se prendre un 403 après
+   * avoir noté ses 12 mots.
+   */
+  const checkServer = useCallback(async (serverUrl: string) => {
+    setBusy(true);
+    try {
+      const { registrationEnabled: open } = await fetchServerInfo(serverUrl);
+      setRegistrationEnabled(open);
+      if (!open) setMode("login");
+      setStep(2);
+    } finally {
+      setBusy(false);
+    }
   }, []);
 
   const back = useCallback(() => {
@@ -144,6 +165,7 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
       const s = data.server.trim().replace(/\/+$/, "");
       if (!s) return setError("Renseigne l'adresse du serveur.");
       setData((d) => ({ ...d, server: s }));
+      return void checkServer(s);
     } else if (step === 2) {
       if (!data.email.trim() || !data.password)
         return setError("Email et mot de passe requis.");
@@ -156,7 +178,7 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
       return submitQuiz();
     }
     setStep((s) => s + 1);
-  }, [step, mode, data, seedPhase, enterSeedStep, submitQuiz, submitTypedSeed]);
+  }, [step, mode, data, seedPhase, checkServer, enterSeedStep, submitQuiz, submitTypedSeed]);
 
   return {
     step,
@@ -164,6 +186,7 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
     data,
     error,
     busy,
+    registrationEnabled,
     words,
     seedPhase,
     quizPositions,

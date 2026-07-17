@@ -94,5 +94,7 @@
   "seedInputSub": "Saisis les 12 mots affichés lors de la création de ton compte. C'est eux qui dérivent ta clé de chiffrement.",
   "seedInputPlaceholder": "Tes 12 mots, séparés par des espaces",
   "seedInputUnknown": "Hors liste :",
-  "seedInputCta": "Se connecter"
+  "seedInputCta": "Se connecter",
+  "registrationClosedSub": "Les inscriptions sont fermées sur ce serveur. Connecte-toi avec un compte existant.",
+  "registrationClosedNotice": "Ce serveur n'accepte pas de nouvelles inscriptions. Il te faut un compte déjà créé par son administrateur."
 }
