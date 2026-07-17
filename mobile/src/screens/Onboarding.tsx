@@ -6,11 +6,12 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Palette } from "../theme";
 import { auth, fetchServerInfo, newDeviceId } from "../api";
+import { useLanguage } from "../i18n";
+import { IlluDevice, IlluLock, IlluServer, IlluSync } from "./Illustrations";
 import { deriveKey } from "../crypto";
 import { generateSeed, normalizeSeed, unknownWords, validateSeed } from "../seed";
 import { saveConfig } from "../store";
 
-const ICONS: any = ["phone-portrait-outline", "cloud-outline", "person-outline", "lock-closed-outline"];
 
 /** Nombre de mots redemandés à la vérification. Positions tirées au hasard. */
 const QUIZ_COUNT = 4;
@@ -27,6 +28,7 @@ function pickPositions(total: number, n: number): number[] {
 
 export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => void }) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [step, setStep] = useState(0);
   const [server, setServer] = useState("");
   const [email, setEmail] = useState("");
@@ -47,26 +49,33 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
 
   const s = styles(p);
   const seedScreen = step === 3 && register;
+
+  const ILLUS = [
+    <IlluSync p={p} />,
+    <IlluServer p={p} />,
+    <IlluDevice p={p} />,
+    <IlluLock p={p} />,
+  ];
   const seedWords = passphrase.trim() ? normalizeSeed(passphrase).split(" ").filter(Boolean) : [];
   const seedUnknown = unknownWords(passphrase);
 
   const titles = [
-    "Ton presse-papier, partout.",
-    "Ton serveur",
-    register && registrationEnabled ? "Crée ton compte" : "Connecte-toi",
-    register ? (seedPhase === "reveal" ? "Note ces 12 mots" : "Vérifions") : "Ta seed phrase",
+    t("obTitle0"),
+    t("obTitle1"),
+    register && registrationEnabled ? t("obTitle2Register") : t("obTitle2Login"),
+    register ? (seedPhase === "reveal" ? t("seedRevealTitle") : t("seedQuizTitle")) : t("seedInputTitle"),
   ];
   const subs = [
-    "Copie sur ton téléphone, colle sur ton ordi. Chiffré de bout en bout, sur ton propre serveur.",
-    "L'adresse de ton instance Mimoe. Il ne voit jamais tes données en clair.",
+    t("obSub0"),
+    t("obSub1"),
     registrationEnabled
-      ? "Ton compte relie tous tes appareils. Historique isolé, rien que le tien."
-      : "Les inscriptions sont fermées sur ce serveur. Connecte-toi avec un compte existant.",
+      ? t("obSub2")
+      : t("registrationClosedSub"),
     register
       ? seedPhase === "reveal"
-        ? "Ils dérivent ta clé de chiffrement. Sans eux, aucun autre appareil ne pourra lire ton presse-papier."
-        : "Recopie les mots demandés pour confirmer que tu les as bien notés."
-      : "Saisis les 12 mots affichés lors de la création de ton compte. C'est eux qui dérivent ta clé de chiffrement.",
+        ? t("seedRevealSub")
+        : t("seedQuizSub")
+      : t("seedInputSub"),
   ];
 
   async function finish(seed: string) {
@@ -84,7 +93,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
       }, key);
       onDone();
     } catch (e: any) {
-      setError(`Échec : ${e.message ?? e}`);
+      setError(`${t("obFailed")}${e.message ?? e}`);
     } finally {
       setBusy(false);
     }
@@ -100,7 +109,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
       setSeedPhase("reveal");
       setStep(3);
     } catch (e: any) {
-      setError(`Génération de la seed impossible : ${e.message ?? e}`);
+      setError(`${t("seedGenFailed")}${e.message ?? e}`);
     }
   }
 
@@ -111,8 +120,8 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
     if (wrong.length) {
       return setError(
         wrong.length === 1
-          ? `Le mot ${wrong[0] + 1} ne correspond pas.`
-          : `${wrong.length} mots ne correspondent pas.`,
+          ? t("seedWordMismatch").replace("{n}", String(wrong[0] + 1))
+          : t("seedWordsMismatch").replace("{n}", String(wrong.length)),
       );
     }
     return finish(words.join(" "));
@@ -139,11 +148,11 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
     setError("");
     if (step === 1) {
       const url = server.trim().replace(/\/+$/, "");
-      if (!url) return setError("Renseigne le serveur.");
+      if (!url) return setError(t("obNeedServer"));
       return void checkServer(url);
     }
     if (step === 2) {
-      if (!email.trim() || !password) return setError("Email et mot de passe requis.");
+      if (!email.trim() || !password) return setError(t("obNeedCreds"));
       // La seed n'est générée que pour un nouveau compte ; un appareil de plus se
       // connecte au compte existant et saisit la seed existante.
       if (register) return enterSeedStep();
@@ -172,10 +181,10 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
   }
 
   function cta() {
-    if (step === 0) return "Commencer";
-    if (step !== 3) return "Continuer";
-    if (!register) return "Se connecter";
-    return seedPhase === "reveal" ? "Je les ai notés" : "Terminer";
+    if (step === 0) return t("obStart");
+    if (step !== 3) return t("obContinue");
+    if (!register) return t("seedInputCta");
+    return seedPhase === "reveal" ? t("seedRevealCta") : t("obFinish");
   }
 
   function back() {
@@ -209,9 +218,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={0}>
       <View style={s.body}>
         {/* Les écrans seed n'ont pas d'illustration : les 12 mots prennent la place. */}
-        {!seedScreen && (
-          <View style={s.illu}><Ionicons name={ICONS[step]} size={48} color={p.accent} /></View>
-        )}
+        {!seedScreen && <View style={s.illu}>{ILLUS[step]}</View>}
         <Text style={s.title}>{titles[step]}</Text>
         <Text style={s.sub}>{subs[step]}</Text>
 
@@ -222,17 +229,17 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
           )}
           {step === 2 && (
             <>
-              <TextInput style={s.input} placeholder="Email" placeholderTextColor={p.textFaint}
+              <TextInput style={s.input} placeholder={t("obEmail")} placeholderTextColor={p.textFaint}
                 autoCapitalize="none" autoCorrect={false} keyboardType="email-address" value={email} onChangeText={setEmail} />
-              <TextInput style={s.input} placeholder="Mot de passe" placeholderTextColor={p.textFaint}
+              <TextInput style={s.input} placeholder={t("obPassword")} placeholderTextColor={p.textFaint}
                 secureTextEntry value={password} onChangeText={setPassword} />
               {/* Instance fermée : pas de bascule vers l'inscription — la proposer
                   mènerait à un 403 après avoir fait noter les 12 mots. */}
               {registrationEnabled ? (
                 <Pressable onPress={() => setRegister(!register)}>
                   <Text style={s.toggle}>
-                    {register ? "Déjà un compte ? " : "Pas de compte ? "}
-                    <Text style={s.toggleLink}>{register ? "Se connecter" : "Créer un compte"}</Text>
+                    {register ? t("obHasAccount") : t("obNoAccount")}
+                    <Text style={s.toggleLink}>{register ? t("obLoginLink") : t("obRegisterLink")}</Text>
                   </Text>
                 </Pressable>
               ) : (
@@ -248,7 +255,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
           )}
           {step === 3 && !register && (
             <>
-              <TextInput style={[s.input, s.seedInput]} placeholder="Tes 12 mots, séparés par des espaces"
+              <TextInput style={[s.input, s.seedInput]} placeholder={t("seedInputPlaceholder")}
                 placeholderTextColor={p.textFaint} autoCapitalize="none" autoCorrect={false}
                 autoComplete="off" multiline value={passphrase} onChangeText={setPassphrase} />
               <View style={s.seedMeta}>
@@ -257,7 +264,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
                 </Text>
                 {seedUnknown.length > 0 && (
                   <Text style={s.seedUnknown} numberOfLines={1}>
-                    Hors liste : {seedUnknown.slice(0, 2).join(", ")}{seedUnknown.length > 2 ? "…" : ""}
+                    {t("seedInputUnknown")} {seedUnknown.slice(0, 2).join(", ")}{seedUnknown.length > 2 ? "…" : ""}
                   </Text>
                 )}
               </View>
@@ -276,7 +283,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
               </View>
               <Pressable style={s.copyBtn} onPress={copySeed}>
                 <Ionicons name={copied ? "checkmark" : "copy-outline"} size={13} color={p.accent} />
-                <Text style={s.copyTxt}>{copied ? "Copié" : "Copier"}</Text>
+                <Text style={s.copyTxt}>{copied ? t("seedCopied") : t("seedCopy")}</Text>
               </Pressable>
 
               <View style={s.warn}>
@@ -292,7 +299,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
             <View style={s.quizGrid}>
               {quizPositions.map((pos) => (
                 <View key={pos} style={s.quizCell}>
-                  <Text style={s.quizLabel}>Mot {pos + 1}</Text>
+                  <Text style={s.quizLabel}>{t("seedQuizWord")} {pos + 1}</Text>
                   <TextInput style={[s.input, s.quizInput]} autoCapitalize="none" autoCorrect={false}
                     autoComplete="off" value={quizAnswers[pos] ?? ""}
                     onChangeText={(v) => setQuizAnswers((a) => ({ ...a, [pos]: v }))} />
@@ -326,7 +333,8 @@ const styles = (p: Palette) => StyleSheet.create({
   pipOn: { width: 20 },
   pipDone: { backgroundColor: p.accent },
   body: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 30 },
-  illu: { width: 110, height: 110, borderRadius: 55, backgroundColor: p.accentSoft, alignItems: "center", justifyContent: "center", marginBottom: 24 },
+  // Pas de pastille de fond : les illustrations portent le sens, un rond les enfermerait.
+  illu: { height: 110, alignItems: "center", justifyContent: "center", marginBottom: 24 },
   title: { color: p.text, fontSize: 26, fontWeight: "700", textAlign: "center", letterSpacing: -0.5 },
   sub: { color: p.textDim, fontSize: 14, textAlign: "center", lineHeight: 21, marginTop: 10, maxWidth: 320 },
   fields: { width: "100%", gap: 10, marginTop: 22 },

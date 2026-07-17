@@ -1,5 +1,6 @@
 import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
+import { translate } from "./i18n";
 import { Platform } from "react-native";
 
 // Préférence notifications (par défaut activée), persistée + cachée en mémoire.
@@ -58,9 +59,9 @@ export async function getFcmToken(): Promise<string | null> {
 export async function notifyClip(kind: "text" | "image" | "file", preview: string) {
   if (!enabled) return;
   const body =
-    kind === "image" ? "🖼 Image reçue" : kind === "file" ? `📄 ${preview.slice(0, 80)}` : preview.slice(0, 100);
+    kind === "image" ? translate("notifImage") : kind === "file" ? `📄 ${preview.slice(0, 80)}` : preview.slice(0, 100);
   await Notifications.scheduleNotificationAsync({
-    content: { title: "Nouveau clip", body },
+    content: { title: translate("notifTitle"), body },
     trigger: null,
   });
 }

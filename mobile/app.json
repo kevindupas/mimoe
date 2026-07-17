@@ -12,7 +12,8 @@
       "bundleIdentifier": "app.mimoe"
     },
     "android": {
-      "package": "app.mimoe",
+      "_packageNote": "app.clipd et non app.mimoe : c'est le nom sous lequel le projet Firebase a ete cree (google-services.json). Le changer ferait une application differente pour Android — les installations existantes ne se mettraient jamais a jour — et casserait le push FCM. L'utilisateur ne voit jamais cet identifiant, seulement le libelle de l'app.",
+      "package": "app.clipd",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -43,7 +44,8 @@
         }
       ],
       "expo-image",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-localization"
     ]
   }
 }

@@ -3,23 +3,34 @@ import * as FileSystem from "expo-file-system/legacy";
 import { StatusBar } from "expo-status-bar";
 import { useShareIntent } from "expo-share-intent";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { postBlob, postClip, registerPushToken } from "./src/api";
 import { base64ToBytes, encrypt, encryptBytes } from "./src/crypto";
 import { loadHidden, saveHidden } from "./src/hidden";
+import { LanguageProvider, useLanguage, type TKey } from "./src/i18n";
 import { getFcmToken, loadNotifPref, setupNotifications } from "./src/notify";
 import Home from "./src/screens/Home";
 import Onboarding from "./src/screens/Onboarding";
 import Settings from "./src/screens/Settings";
 import { clearConfig, getKey, loadConfig, type Config } from "./src/store";
-import { colors, type Palette } from "./src/theme";
+import { ThemeProvider, useTheme, type Palette } from "./src/theme";
 import { useClips, type Clip } from "./src/useClips";
 
 export default function App() {
-  const scheme = useColorScheme();
-  const p = scheme === "dark" ? colors.dark : colors.light;
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <Root />
+      </LanguageProvider>
+    </ThemeProvider>
+  );
+}
+
+function Root() {
+  const { scheme, palette: p } = useTheme();
+  const { t } = useLanguage();
   const [cfg, setCfg] = useState<Config | null>(null);
   const [ready, setReady] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -77,17 +88,17 @@ export default function App() {
           const blobId = await postBlob(c.serverUrl, c.deviceToken, blob.ciphertext, blob.nonce);
           const cap = encrypt(key, "Image");
           await postClip(c.serverUrl, c.deviceToken, c.deviceId, cap.ciphertext, cap.nonce, { kind: "image", blobId });
-          if (Platform.OS === "android") ToastAndroid.show("Image envoyée", ToastAndroid.SHORT);
+          if (Platform.OS === "android") ToastAndroid.show(t("imageSent"), ToastAndroid.SHORT);
         } else {
           const text = shareIntent?.text?.trim();
           if (text) {
             const { ciphertext, nonce } = encrypt(key, text);
             await postClip(c.serverUrl, c.deviceToken, c.deviceId, ciphertext, nonce);
-            if (Platform.OS === "android") ToastAndroid.show("Envoyé à Mimoe", ToastAndroid.SHORT);
+            if (Platform.OS === "android") ToastAndroid.show(t("textSent"), ToastAndroid.SHORT);
           }
         }
       } catch {
-        if (Platform.OS === "android") ToastAndroid.show("Échec de l'envoi", ToastAndroid.SHORT);
+        if (Platform.OS === "android") ToastAndroid.show(t("sendFailed"), ToastAndroid.SHORT);
       } finally {
         setSharing(false);
         resetShareIntent();
@@ -113,7 +124,7 @@ export default function App() {
             <View style={styles.overlay}>
               <View style={[styles.toast, { backgroundColor: p.surface }]}>
                 <ActivityIndicator color={p.accent} />
-                <Text style={{ color: p.text }}>Envoi…</Text>
+                <Text style={{ color: p.text }}>{t("sending")}</Text>
               </View>
             </View>
           )}
@@ -170,19 +181,21 @@ function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () =
 
 function UndoBar({ p, onUndo }: { p: Palette; onUndo: () => void }) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   return (
     <View style={[styles.undo, { bottom: insets.bottom + 66, backgroundColor: p.text }]}>
-      <Text style={{ color: p.bg, flex: 1, fontSize: 14 }}>Clip supprimé</Text>
-      <Pressable onPress={onUndo} hitSlop={10}><Text style={{ color: p.accent, fontWeight: "700", fontSize: 14 }}>ANNULER</Text></Pressable>
+      <Text style={{ color: p.bg, flex: 1, fontSize: 14 }}>{t("clipDeleted")}</Text>
+      <Pressable onPress={onUndo} hitSlop={10}><Text style={{ color: p.accent, fontWeight: "700", fontSize: 14 }}>{t("undo")}</Text></Pressable>
     </View>
   );
 }
 
 function BottomBar({ p, tab, onTab }: { p: Palette; tab: "home" | "settings"; onTab: (t: "home" | "settings") => void }) {
   const insets = useSafeAreaInsets();
-  const items: { key: "home" | "settings"; icon: any; label: string }[] = [
-    { key: "home", icon: "time-outline", label: "Historique" },
-    { key: "settings", icon: "settings-outline", label: "Réglages" },
+  const { t } = useLanguage();
+  const items: { key: "home" | "settings"; icon: any; label: TKey }[] = [
+    { key: "home", icon: "time-outline", label: "tabHistory" },
+    { key: "settings", icon: "settings-outline", label: "tabSettings" },
   ];
   return (
     <View style={[styles.bar, { paddingBottom: insets.bottom + 6, backgroundColor: p.surface, borderTopColor: p.border }]}>
@@ -192,7 +205,7 @@ function BottomBar({ p, tab, onTab }: { p: Palette; tab: "home" | "settings"; on
         return (
           <Pressable key={it.key} style={styles.tab} onPress={() => onTab(it.key)}>
             <Ionicons name={active ? it.icon.replace("-outline", "") : it.icon} size={23} color={color} />
-            <Text style={{ color, fontSize: 11, fontWeight: active ? "600" : "400", marginTop: 2 }}>{it.label}</Text>
+            <Text style={{ color, fontSize: 11, fontWeight: active ? "600" : "400", marginTop: 2 }}>{t(it.label)}</Text>
           </Pressable>
         );
       })}
