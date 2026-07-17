@@ -1,0 +1,196 @@
+@import "tailwindcss";
+
+/* Mimoe — design tokens macOS natif, sobre et pro. */
+:root {
+  --accent: #047a69;
+  --accent-soft: rgba(4, 122, 105, 0.08);
+  --accent-hover: #036658;
+  
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-hover: rgba(0, 0, 0, 0.03);
+  --text: #1d1d1f;
+  --dim: #6e6e73;
+  --faint: #86868b;
+  --danger: #ff3b30;
+  --danger-soft: rgba(255, 59, 48, 0.08);
+  --border: rgba(0, 0, 0, 0.065);
+  --border-strong: rgba(0, 0, 0, 0.12);
+  --kbd: #e5e5ea;
+}
+
+/* Dark tokens. Applied via:
+   - the system theme (prefers-color-scheme) UNLESS the user forces "light"
+   - the manual data-theme="dark" choice (settings)
+   See ThemeContext which sets data-theme on <html>. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1c1e;
+    --surface: #2c2c2e;
+    --surface-hover: rgba(255, 255, 255, 0.04);
+    --text: #f5f5f7;
+    --dim: #aeaeb2;
+    --faint: #8e8e93;
+    --danger: #ff453a;
+    --danger-soft: rgba(255, 69, 58, 0.12);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --kbd: #3a3a3c;
+    --accent-soft: rgba(4, 122, 105, 0.15);
+    --accent-hover: #058f7b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --text: #f5f5f7;
+  --dim: #aeaeb2;
+  --faint: #8e8e93;
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --kbd: #3a3a3c;
+  --accent-soft: rgba(4, 122, 105, 0.15);
+  --accent-hover: #058f7b;
+}
+
+@theme {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-text: var(--text);
+  --color-dim: var(--dim);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-hover: var(--accent-hover);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-kbd: var(--kbd);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", "Inter", sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Monaco, Consolas, monospace;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    @apply bg-bg text-text font-sans text-[13px] antialiased select-none overflow-hidden transition-colors duration-200;
+  }
+  #app {
+    height: 100vh;
+  }
+  svg {
+    @apply block h-4 w-4;
+  }
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Scrollbar sobre (liste) */
+.scroll-slim::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background: var(--dim);
+}
+
+/* Grille de transparence pour images */
+.bg-transparency-grid {
+  background-image: linear-gradient(45deg, var(--border) 25%, transparent 25%),
+                    linear-gradient(-45deg, var(--border) 25%, transparent 25%),
+                    linear-gradient(45deg, transparent 75%, var(--border) 75%),
+                    linear-gradient(-45deg, transparent 75%, var(--border) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+}
+
+/* Static hatched pattern for hidden spoilers (0% CPU) */
+.bg-spoiler-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--border-strong) 0px,
+    var(--border-strong) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+}
+
+/* --- Keyframes --- */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes obIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes hopIn {
+  0% { transform: translateX(70px); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(97px); opacity: 0; }
+}
+@keyframes hopOut {
+  0% { transform: translateX(141px); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(168px); opacity: 0; }
+}
+@keyframes dashflow { to { stroke-dashoffset: -20; } }
+@keyframes pulse {
+  0% { transform: scale(0.7); opacity: 0.5; }
+  70% { transform: scale(1.15); opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes draw {
+  from { stroke-dashoffset: 44; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes led {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+.anim-slide-in { animation: slideIn 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+.anim-ob-in { animation: obIn 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+.sync-dot-in { animation: hopIn 2.4s ease-in-out infinite; }
+.sync-dot-out { animation: hopOut 2.4s ease-in-out 1.2s infinite backwards; }
+.sync-line { animation: dashflow 1s linear infinite; }
+.pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse 2.2s ease-out infinite;
+}
+.check-draw {
+  stroke-dasharray: 44;
+  animation: draw 0.7s ease-out 0.2s both;
+}
+.led { animation: led 1.8s ease-in-out infinite backwards; }
+.led-2 { animation-delay: 0.3s; }
+.led-3 { animation-delay: 0.6s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
