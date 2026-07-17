@@ -30,7 +30,7 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/Library/Application Support/app.mimoe/clipimg/**"]
+        "scope": ["$DATA/app.mimoe/clipimg/**"]
       }
     }
   },

@@ -36,10 +36,33 @@ fn config_path() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-/// ~/Library/Application Support sur macOS.
+/// Dossier de donnees applicatives, par OS. Aligne sur la variable `$DATA` du
+/// scope assetProtocol de Tauri (meme racine des deux cotes, sinon les images
+/// dechiffrees ne seraient pas servables) :
+///   - macOS   : ~/Library/Application Support
+///   - Windows : %APPDATA% (Roaming)
+///   - Linux   : $XDG_DATA_HOME ou ~/.local/share
 fn dirs_config_dir() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "HOME introuvable".to_string())?;
-    Ok(PathBuf::from(home).join("Library/Application Support"))
+    #[cfg(target_os = "macos")]
+    {
+        let home = std::env::var("HOME").map_err(|_| "HOME introuvable".to_string())?;
+        Ok(PathBuf::from(home).join("Library/Application Support"))
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let appdata = std::env::var("APPDATA").map_err(|_| "APPDATA introuvable".to_string())?;
+        Ok(PathBuf::from(appdata))
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(x) = std::env::var("XDG_DATA_HOME") {
+            if !x.is_empty() {
+                return Ok(PathBuf::from(x));
+            }
+        }
+        let home = std::env::var("HOME").map_err(|_| "HOME introuvable".to_string())?;
+        Ok(PathBuf::from(home).join(".local/share"))
+    }
 }
 
 /// Dossier de cache des images déchiffrées (une image = un fichier local, déchiffré
