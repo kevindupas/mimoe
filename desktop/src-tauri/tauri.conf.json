@@ -30,7 +30,9 @@
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost data: blob:; connect-src 'self' ipc: http://ipc.localhost http: https: ws: wss:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$DATA/app.mimoe/clipimg/**"]
+        "scope": [
+          "$DATA/app.mimoe/clipimg/**"
+        ]
       }
     }
   },
@@ -52,7 +54,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNEN0Y3QzdDQTBDQkQxNzcKUldSMzBjdWdmSHgvUFlRV3p2YjdLcjV0S0RDTUJMNGxVd0ZkZThEdzJVdEhiamZlc3VKdHNnblQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZBQTA4RENCNDBFQjFERjQKUldUMEhldEF5NDJnK2xqTDF2K0Y3ZkZabmM2VE5CQ2Z3RW1CSUxMdjBCMFBFeFpzU1FTb0g5Z04K",
       "endpoints": [
         "https://github.com/kevindupas/mimoe/releases/latest/download/latest.json"
       ]
