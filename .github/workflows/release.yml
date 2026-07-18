@@ -1,0 +1,110 @@
+name: Release Mimoe
+
+# Triggered by pushing a version tag, e.g. `git tag v0.2.0 && git push --tags`.
+# Builds the installers for every platform and attaches them to a single GitHub
+# Release for the tag:
+#   - macOS   -> .dmg (universal) + latest.json (Tauri auto-update)
+#   - Windows -> .exe / .msi (+ signed update artifact)
+#   - Android -> .apk (sideload)
+#
+# Each job is opt-in via a repository variable so a bare tag never hard-fails when
+# the signing material is not configured yet. Enable per platform under
+# Settings > Secrets and variables > Actions:
+#   - DESKTOP_RELEASE = true   + secrets TAURI_SIGNING_PRIVATE_KEY / _PASSWORD
+#   - ANDROID_RELEASE = true   + secret GOOGLE_SERVICES_JSON (base64 of the file)
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # macOS (.dmg) and Windows (.exe/.msi) built with Tauri, signed for auto-update.
+  desktop:
+    if: ${{ vars.DESKTOP_RELEASE == 'true' }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: "--target universal-apple-darwin"
+            targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+          - os: windows-latest
+            args: ""
+            targets: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets }}
+
+      - name: Install frontend deps
+        working-directory: desktop
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Update-signing key (GitHub secrets). The passphrase is NOT empty: without
+          # it, the single TAURI_SIGNING_PRIVATE_KEY secret would be enough to sign a
+          # malicious update pushed to every desktop.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # No paid Apple account -> ad-hoc signature (no notarization).
+          APPLE_SIGNING_IDENTITY: "-"
+        with:
+          projectPath: desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Mimoe ${{ github.ref_name }}"
+          releaseBody: "Auto-update via the app. On first launch (macOS): right-click > Open."
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  # Android (.apk). Debug-signed (sideload). Needs the Firebase config as a secret
+  # because google-services.json is not committed.
+  android:
+    if: ${{ vars.ANDROID_RELEASE == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install deps
+        working-directory: mobile
+        run: npm ci
+
+      - name: Restore Firebase config
+        working-directory: mobile
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        working-directory: mobile
+        run: cp android/app/build/outputs/apk/release/app-release.apk mimoe-${{ github.ref_name }}.apk
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Mimoe ${{ github.ref_name }}"
+          files: mobile/mimoe-${{ github.ref_name }}.apk
