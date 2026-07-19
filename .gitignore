@@ -10,3 +10,8 @@
 
 # AI assistant specific files
 CLAUDE.md
+
+# Secrets déposés localement (clés Firebase admin, etc.) — jamais versionnés
+/docs/*.json
+/docs/*firebase*adminsdk*.json
+service-account*.json
