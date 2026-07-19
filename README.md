@@ -16,6 +16,14 @@ Phone (iOS / Android) ↔ computer (macOS / Windows / Linux), even outside your 
 ![Encryption](https://img.shields.io/badge/encryption-end--to--end-brightgreen)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Android%20·%20iOS-informational)
 
+### Download
+
+<a href="https://github.com/kevindupas/mimoe/releases/latest/download/Mimoe_0.1.0_universal.dmg"><img src="https://img.shields.io/badge/macOS-.dmg-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS"></a>
+<a href="https://github.com/kevindupas/mimoe/releases/latest/download/Mimoe_0.1.0_x64-setup.exe"><img src="https://img.shields.io/badge/Windows-.exe-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows"></a>
+<a href="https://github.com/kevindupas/mimoe/releases/latest/download/mimoe-v0.1.0.apk"><img src="https://img.shields.io/badge/Android-.apk-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android"></a>
+
+<sub>or browse all files on the <a href="https://github.com/kevindupas/mimoe/releases/latest">latest release</a></sub>
+
 </div>
 
 ---
