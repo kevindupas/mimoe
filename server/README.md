@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/logo.png" alt="Mimoe" width="90" /></p>
+
 # Mimoe — Server
 
 ![Laravel](https://img.shields.io/badge/Laravel-FF2D20?logo=laravel&logoColor=white)

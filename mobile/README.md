@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/logo.png" alt="Mimoe" width="90" /></p>
+
 # Mimoe — Mobile
 
 ![Expo](https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white)

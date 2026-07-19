@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/logo.png" alt="Mimoe" width="90" /></p>
+
 # Mimoe — Desktop
 
 ![Tauri](https://img.shields.io/badge/Tauri_2-24C8DB?logo=tauri&logoColor=white)

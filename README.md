@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="Mimoe" width="150" />
+
 # Mimoe
 
 **Self-hosted, end-to-end encrypted shared clipboard.**
