@@ -58,11 +58,11 @@ Clients **always** initiate the connection (outbound POST + WebSocket). No inbou
 ```mermaid
 graph TB
     subgraph Clients
-        M["📱 Mobile<br/>React Native / Expo<br/>iOS · Android"]
-        D["🖥️ Desktop<br/>Tauri (Rust + React)<br/>macOS · Windows · Linux"]
+        M["Mobile<br/>React Native / Expo<br/>iOS · Android"]
+        D["Desktop<br/>Tauri (Rust + React)<br/>macOS · Windows · Linux"]
     end
 
-    subgraph Server["🌐 Self-hosted server"]
+    subgraph Server["Self-hosted server"]
         API["Laravel<br/>REST API"]
         WS["Reverb<br/>WebSocket"]
         DB[("PostgreSQL<br/>ciphertext only")]
@@ -91,25 +91,31 @@ Server exposure: behind a TLS reverse proxy (Caddy / nginx / Traefik) or a priva
 From a copy on one device to the decrypted display on the others. The server only handles opaque data.
 
 ```mermaid
+%%{init: {"theme": "neutral", "themeCSS": ".messageText, text.messageText, .loopText, text.loopText, .loopText tspan, .sectionTitle, text.sectionTitle, .sectionTitle tspan, .labelText, text.labelText { paint-order: stroke; stroke: #ffffff; stroke-width: 6px; stroke-linejoin: round; }"}}%%
 sequenceDiagram
     autonumber
+
     participant A as Device A (source)
     participant S as Server
     participant B as Device B
 
-    Note over A: copy detected
-    A->>A: encrypt (AES-256-GCM)<br/>keyed HMAC fingerprint
+    Note over A: Copy detected
+    A->>A: Encrypt (AES-256-GCM)<br/>Keyed HMAC fingerprint
+    
     A->>S: POST /clip {ciphertext, nonce, dedup_hash}
-    alt content already present (same fingerprint)
-        S->>S: bump the existing clip to top
-        S-->>A: 200 (existing)
-    else new content
-        S->>S: store the ciphertext
-        S-->>A: 201
+    
+    alt Content already present (same fingerprint)
+        S->>S: Bump existing clip to top
+        S-->>A: 200 (Existing)
+    else New content
+        S->>S: Store ciphertext
+        S-->>A: 201 (Created)
     end
+    
     S-->>B: WebSocket push (ciphertext)
-    B->>B: decrypt locally
-    Note over B: appears in history<br/>(pasted on user action)
+    
+    B->>B: Decrypt locally
+    Note over B: Appears in history<br/>(Pasted on user action)
 ```
 
 ---
@@ -161,11 +167,11 @@ Each folder has its own detailed README.
 
 | | Send | Receive | Status |
 | --- | --- | --- | --- |
-| **macOS** | automatic clipboard capture | history + paste | ✅ |
-| **Windows** | automatic clipboard capture | history + paste | ✅ |
-| **Linux** | — | — | 🚧 compiles, not finished |
-| **Android** | share sheet | history + notifications | ✅ |
-| **iOS** | share sheet | history | 🚧 never built (Apple account needed) |
+| **macOS** | automatic clipboard capture | history + paste | Yes |
+| **Windows** | automatic clipboard capture | history + paste | Yes |
+| **Linux** | — | — | WIP — compiles, not finished |
+| **Android** | share sheet | history + notifications | Yes |
+| **iOS** | share sheet | history | WIP — never built (Apple account needed) |
 
 ---
 
