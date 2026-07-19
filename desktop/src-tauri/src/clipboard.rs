@@ -309,8 +309,12 @@ fn emit_blob(app: &AppHandle, bytes: &[u8], mime: &str, name: &str, kind: &str) 
     let blob_id = post_blob(&cfg.server_url, &token, &blob_data, &blob_nonce)?;
 
     // Local disk cache = RAW bytes (decompressed): no re-download at render time.
+    // Images get a `.png` extension so the asset protocol serves them as image/png:
+    // WebView2 (Windows) refuses to render an <img> with an octet-stream Content-Type,
+    // while macOS WKWebView content-sniffs and renders it regardless.
     if let Ok(dir) = store::image_cache_dir() {
-        let _ = std::fs::write(dir.join(&blob_id), bytes);
+        let fname = if kind == "image" { format!("{blob_id}.png") } else { blob_id.clone() };
+        let _ = std::fs::write(dir.join(&fname), bytes);
     }
 
     // 2. Pointer clip (ciphertext = encrypted file name, displayed under the image).

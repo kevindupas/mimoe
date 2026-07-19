@@ -253,7 +253,9 @@ fn fetch_blob_bytes(state: &State<AppState>, blob_id: &str) -> Result<Vec<u8>, S
 #[tauri::command]
 async fn cache_image(state: State<'_, AppState>, blob_id: String) -> Result<String, String> {
     require_uuid(&blob_id)?;
-    let path = store::image_cache_dir()?.join(&blob_id);
+    // `.png` extension so the asset protocol serves image/png (WebView2/Windows
+    // won't render an <img> served as octet-stream; macOS WKWebView sniffs instead).
+    let path = store::image_cache_dir()?.join(format!("{blob_id}.png"));
     if !path.exists() {
         let bytes = fetch_blob_bytes(&state, &blob_id)?;
         std::fs::write(&path, &bytes).map_err(|e| format!("write cache: {e}"))?;
@@ -307,9 +309,13 @@ fn prune_image_cache(keep: Vec<String>) -> Result<(), String> {
     let keep: HashSet<String> = keep.into_iter().collect();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for e in entries.flatten() {
-            if let Some(name) = e.file_name().to_str() {
-                if !keep.contains(name) {
-                    let _ = std::fs::remove_file(e.path());
+            // Cache names may carry a `.png` extension (images); compare on the
+            // blob id (file stem), which is what `keep` holds.
+            let path = e.path();
+            let id = path.file_stem().and_then(|s| s.to_str());
+            if let Some(id) = id {
+                if !keep.contains(id) {
+                    let _ = std::fs::remove_file(&path);
                 }
             }
         }
@@ -323,7 +329,7 @@ fn prune_image_cache(keep: Vec<String>) -> Result<(), String> {
 #[tauri::command]
 async fn copy_image_cached(state: State<'_, AppState>, blob_id: String) -> Result<(), String> {
     require_uuid(&blob_id)?;
-    let path = store::image_cache_dir()?.join(&blob_id);
+    let path = store::image_cache_dir()?.join(format!("{blob_id}.png"));
     let raw = if path.exists() {
         std::fs::read(&path).map_err(|e| format!("read cache: {e}"))?
     } else {
