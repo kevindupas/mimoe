@@ -2,6 +2,10 @@ import type { AuthMode, FrontendConfig, RawClip } from "./types";
 
 /** HTTP calls to the Mimoe server (the server only ever sees encrypted data). */
 
+/** Thrown when the server rejects our token (401): account deleted or token
+ *  revoked → the client should sign out automatically. */
+export class AuthError extends Error {}
+
 export async function fetchClips(config: FrontendConfig): Promise<RawClip[]> {
   const res = await fetch(`${config.server_url}/api/clips`, {
     headers: {
@@ -9,6 +13,7 @@ export async function fetchClips(config: FrontendConfig): Promise<RawClip[]> {
       Accept: "application/json",
     },
   });
+  if (res.status === 401) throw new AuthError();
   if (!res.ok) throw new Error(`${res.status}`);
   const body = await res.json();
   return body.data ?? [];

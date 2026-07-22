@@ -142,7 +142,7 @@ function Root() {
 
 function MainApp({ p, cfg, onUnpair }: { p: Palette; cfg: Config; onUnpair: () => void }) {
   const [tab, setTab] = useState<"home" | "settings">("home");
-  const { clips, refreshing, refresh, softDelete, togglePin } = useClips(cfg);
+  const { clips, refreshing, refresh, softDelete, togglePin } = useClips(cfg, onUnpair);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [undo, setUndo] = useState<null | (() => void)>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

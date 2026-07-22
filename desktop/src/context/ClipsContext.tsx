@@ -10,7 +10,7 @@ import {
 } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { deleteClip, fetchClips, pinClip } from "../lib/api";
+import { AuthError, deleteClip, fetchClips, pinClip } from "../lib/api";
 import { decryptRaw } from "../lib/clips";
 import { pop } from "../lib/sound";
 import { tauri } from "../lib/tauri";
@@ -47,7 +47,7 @@ export function ClipsProvider({
   config: FrontendConfig;
   children: ReactNode;
 }) {
-  const { soundOn } = useApp();
+  const { soundOn, unpair } = useApp();
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
@@ -75,9 +75,14 @@ export function ClipsProvider({
         .pruneImageCache(next.filter((c) => c.blobId).map((c) => c.blobId!))
         .catch(() => {});
     } catch (e) {
+      // Token rejected (account deleted / revoked) → sign out automatically.
+      if (e instanceof AuthError) {
+        unpair();
+        return;
+      }
       console.error("loadHistory", e);
     }
-  }, [config]);
+  }, [config, unpair]);
 
   // Load the history + wire up the real-time events (pushed by the Rust thread).
   useEffect(() => {

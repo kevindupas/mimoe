@@ -180,10 +180,15 @@ export async function registerPushToken(
   if (!res.ok) throw new Error(`POST /push-token ${res.status}`);
 }
 
+/** Thrown when the server rejects our token (401): account deleted or token
+ *  revoked → the app should sign out automatically. */
+export class AuthError extends Error {}
+
 export async function fetchHistory(serverUrl: string, token: string): Promise<RawClip[]> {
   const res = await fetch(`${serverUrl}/api/clips`, {
     headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
   });
+  if (res.status === 401) throw new AuthError();
   if (!res.ok) return [];
   const body = await res.json();
   return body.data ?? [];

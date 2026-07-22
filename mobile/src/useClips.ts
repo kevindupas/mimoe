@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { deleteClip, fetchHistory, pinClip, type RawClip } from "./api";
+import { AuthError, deleteClip, fetchHistory, pinClip, type RawClip } from "./api";
 import { loadClipCache, saveClipCache } from "./clipCache";
 import { decrypt } from "./crypto";
 import { pruneImageCache } from "./imageCache";
@@ -22,7 +22,7 @@ export interface Clip {
 }
 
 /** Loads the history + keeps the realtime connection + notifies on receipt. */
-export function useClips(cfg: Config) {
+export function useClips(cfg: Config, onUnauthorized?: () => void) {
   const [clips, setClips] = useState<Clip[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const keyRef = useRef<Uint8Array | null>(null);
@@ -75,7 +75,14 @@ export function useClips(cfg: Config) {
     const key = keyRef.current ?? (await getKey());
     keyRef.current = key;
     if (!key) return;
-    const raws = await fetchHistory(cfg.serverUrl, cfg.deviceToken);
+    let raws: RawClip[];
+    try {
+      raws = await fetchHistory(cfg.serverUrl, cfg.deviceToken);
+    } catch (e) {
+      // Token rejected (account deleted / revoked) → sign out automatically.
+      if (e instanceof AuthError) { onUnauthorized?.(); return; }
+      throw e;
+    }
     renderFrom(raws, key);
     saveClipCache(raws);
     pruneImageCache(raws.filter((r) => r.kind === "image").map((r) => r.id));
