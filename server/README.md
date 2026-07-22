@@ -35,6 +35,8 @@ All routes are under `/api`. Bearer token auth (Sanctum) unless noted.
 | `POST` | `/blob` | token | Upload an encrypted blob (image/file) |
 | `GET` | `/blob/{id}` | token | Fetch a blob (account-scoped) |
 | `POST` | `/push-token` | token | Register an FCM token |
+| `GET` | `/me` | token | Account email (settings screen) |
+| `DELETE` | `/account` | token | Delete the account and all its data (right to erasure) |
 
 Broadcast: private channel `clips.{userId}`, restricted to the owner (see `routes/channels.php`).
 
