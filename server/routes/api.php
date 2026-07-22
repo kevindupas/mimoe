@@ -29,6 +29,9 @@ Route::middleware(['auth:sanctum', 'throttle:300,1'])->group(function () {
     Route::get('/blob/{id}', [BlobController::class, 'show']);
     Route::post('/push-token', [PushController::class, 'register']);
 
+    // Authenticated account info (email) for the settings screen.
+    Route::get('/me', [AuthController::class, 'me']);
+
     // Right to erasure: deletes the account and ALL its data.
     Route::delete('/account', [AuthController::class, 'deleteAccount']);
 });

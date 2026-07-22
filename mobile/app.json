@@ -12,13 +12,12 @@
       "bundleIdentifier": "app.mimoe"
     },
     "android": {
-      "_packageNote": "app.clipd and not app.mimoe: this is the name the Firebase project was created under (google-services.json). Changing it would make a different Android application — existing installs would never update — and break FCM push. Users never see this identifier, only the app label.",
+      "_packageNote": "app.clipd and not app.mimoe: this is the name the Firebase project was created under (google-services.json). Changing it would make a different Android application \u2014 existing installs would never update \u2014 and break FCM push. Users never see this identifier, only the app label.",
       "package": "app.clipd",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false

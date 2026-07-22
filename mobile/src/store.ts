@@ -6,13 +6,14 @@ export interface Config {
   serverUrl: string;
   deviceId: string;
   userId: number;
+  email: string;
   deviceToken: string;
   reverbAppKey: string;
   reverbPort: number;
 }
 
 const KEYS = [
-  "server_url", "device_id", "user_id", "device_token", "reverb_app_key", "reverb_port", "enc_key",
+  "server_url", "device_id", "user_id", "email", "device_token", "reverb_app_key", "reverb_port", "enc_key",
 ] as const;
 
 export async function loadConfig(): Promise<Config | null> {
@@ -25,16 +26,23 @@ export async function loadConfig(): Promise<Config | null> {
     serverUrl,
     deviceId,
     userId: Number(await SecureStore.getItemAsync("user_id")) || 0,
+    email: (await SecureStore.getItemAsync("email")) || "",
     deviceToken,
     reverbAppKey: (await SecureStore.getItemAsync("reverb_app_key")) || "",
     reverbPort: Number(await SecureStore.getItemAsync("reverb_port")) || 443,
   };
 }
 
+/** Persists just the account email (fallback for pre-email installs, from /api/me). */
+export async function saveEmail(email: string): Promise<void> {
+  await SecureStore.setItemAsync("email", email);
+}
+
 export async function saveConfig(c: Config, key: Uint8Array): Promise<void> {
   await SecureStore.setItemAsync("server_url", c.serverUrl);
   await SecureStore.setItemAsync("device_id", c.deviceId);
   await SecureStore.setItemAsync("user_id", String(c.userId));
+  await SecureStore.setItemAsync("email", c.email);
   await SecureStore.setItemAsync("device_token", c.deviceToken);
   await SecureStore.setItemAsync("reverb_app_key", c.reverbAppKey);
   await SecureStore.setItemAsync("reverb_port", String(c.reverbPort));

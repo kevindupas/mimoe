@@ -4,6 +4,7 @@ import * as Crypto from "expo-crypto";
 export interface AuthResult {
   token: string;
   userId: number;
+  email: string;
   reverbAppKey: string;
   reverbPort: number;
 }
@@ -72,9 +73,24 @@ export async function auth(
   return {
     token: body.token,
     userId: body.user_id,
+    email: body.email ?? "",
     reverbAppKey: body.reverb_app_key,
     reverbPort: body.reverb_port ?? 443,
   };
+}
+
+/** Account email, for installs paired before the email was stored locally. */
+export async function fetchMe(serverUrl: string, token: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${serverUrl}/api/me`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return typeof body?.email === "string" ? body.email : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function postClip(

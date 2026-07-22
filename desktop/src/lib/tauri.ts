@@ -19,12 +19,15 @@ export const tauri = {
     deviceId: string;
     deviceToken: string;
     userId: number;
+    email: string;
     passphrase: string;
     reverbAppKey: string;
     reverbHost: string;
     reverbPort: number;
     reverbScheme: string;
   }) => invoke("setup", args),
+  /** Persists the account email (fallback for pre-email installs, from /api/me). */
+  updateEmail: (email: string) => invoke("update_email", { email }),
   unpair: () => invoke("unpair"),
   hideWindow: () => invoke("hide_window"),
   decryptClip: (ciphertext: string, nonce: string) =>

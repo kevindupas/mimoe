@@ -99,5 +99,7 @@
   "registrationClosedNotice": "Ce serveur n'accepte pas de nouvelles inscriptions. Il te faut un compte déjà créé par son administrateur.",
   "deleteAccountButton": "Supprimer mon compte",
   "deleteAccountConfirm": "Supprimer définitivement ton compte et toutes ses données, sur TOUS tes appareils ? Cette action est irréversible.",
-  "deleteAccountError": "La suppression du compte a échoué. Réessaie."
+  "deleteAccountError": "La suppression du compte a échoué. Réessaie.",
+  "account": "Compte",
+  "confirm": "Confirmer"
 }

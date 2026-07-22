@@ -42,6 +42,7 @@ struct FrontendConfig {
     device_id: String,
     device_token: String,
     user_id: i64,
+    email: String,
     reverb_app_key: String,
     reverb_host: String,
     reverb_port: u16,
@@ -133,6 +134,7 @@ fn setup(
     device_id: String,
     device_token: String,
     user_id: i64,
+    email: String,
     passphrase: String,
     reverb_app_key: String,
     reverb_host: String,
@@ -157,6 +159,7 @@ fn setup(
         server_url,
         device_id,
         user_id,
+        email,
         reverb_app_key,
         reverb_host,
         reverb_port,
@@ -178,11 +181,21 @@ fn get_config() -> Result<FrontendConfig, String> {
         device_id: cfg.device_id,
         device_token,
         user_id: cfg.user_id,
+        email: cfg.email,
         reverb_app_key: cfg.reverb_app_key,
         reverb_host: cfg.reverb_host,
         reverb_port: cfg.reverb_port,
         reverb_scheme: cfg.reverb_scheme,
     })
+}
+
+/// Persists the account email (fallback for installs paired before the email
+/// was stored: the settings screen fetches it from /api/me then calls this).
+#[tauri::command]
+fn update_email(email: String) -> Result<(), String> {
+    let mut cfg = store::load_config().ok_or("not configured")?;
+    cfg.email = email;
+    store::save_config(&cfg)
 }
 
 /// Decrypts a received clip (ciphertext + base64 nonce). Key taken from the state.
@@ -444,6 +457,7 @@ pub fn run() {
             set_blacklist,
             setup,
             get_config,
+            update_email,
             decrypt_clip,
             copy_to_clipboard,
             cache_image,

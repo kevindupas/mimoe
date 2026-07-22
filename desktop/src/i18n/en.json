@@ -99,5 +99,7 @@
   "registrationClosedNotice": "This server is not accepting new registrations. You need an account created by its administrator.",
   "deleteAccountButton": "Delete my account",
   "deleteAccountConfirm": "Permanently delete your account and all its data, on ALL your devices? This cannot be undone.",
-  "deleteAccountError": "Account deletion failed. Please try again."
+  "deleteAccountError": "Account deletion failed. Please try again.",
+  "account": "Account",
+  "confirm": "Confirm"
 }

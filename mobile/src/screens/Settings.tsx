@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, ToastAndroid, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { deleteAccount } from "../api";
+import { deleteAccount, fetchMe } from "../api";
 import { useLanguage, type LangSetting } from "../i18n";
 import { isNotifEnabled, loadNotifPref, setNotifEnabled } from "../notify";
-import type { Config } from "../store";
+import { saveEmail, type Config } from "../store";
 import { useTheme, type Palette, type ThemeSetting } from "../theme";
 
 /** Language labels: never translated — we read them in their own language. */
@@ -26,6 +26,16 @@ export default function Settings({ p, cfg, onUnpair }: {
   const s = styles(p);
   const [notif, setNotif] = useState(isNotifEnabled());
   useEffect(() => { loadNotifPref().then(setNotif); }, []);
+
+  // Account email: shown from local config; if paired before it was stored,
+  // fetch it once from /api/me and persist it.
+  const [email, setEmail] = useState(cfg.email);
+  useEffect(() => {
+    if (email) return;
+    fetchMe(cfg.serverUrl, cfg.deviceToken).then((e) => {
+      if (e) { setEmail(e); saveEmail(e); }
+    });
+  }, [email, cfg.serverUrl, cfg.deviceToken]);
 
   // Account deletion: irreversible and global (all devices).
   // Destructive confirmation before the server call, then local sign-out.
@@ -61,6 +71,8 @@ export default function Settings({ p, cfg, onUnpair }: {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20, gap: 18 }}>
         <Group p={p} title={t("groupConnection")}>
+          <Row p={p} label={t("rowAccount")} value={email || "—"} />
+          <View style={s.divider} />
           <Row p={p} label={t("rowServer")} value={cfg.serverUrl} />
           <View style={s.divider} />
           <Row p={p} label={t("rowDevice")} value={cfg.deviceId.slice(0, 8) + "…"} />

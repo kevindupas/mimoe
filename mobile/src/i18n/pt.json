@@ -91,5 +91,6 @@
   "cancel": "Cancelar",
   "deleteAccountButton": "Excluir minha conta",
   "deleteAccountConfirm": "Excluir definitivamente sua conta e todos os seus dados, em TODOS os seus dispositivos? Esta ação é irreversível.",
-  "deleteAccountError": "Falha ao excluir. Tente novamente."
+  "deleteAccountError": "Falha ao excluir. Tente novamente.",
+  "rowAccount": "Conta"
 }

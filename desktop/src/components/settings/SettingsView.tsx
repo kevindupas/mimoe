@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useApp } from "../../context/AppContext";
-import { deleteAccount } from "../../lib/api";
+import { deleteAccount, fetchMe } from "../../lib/api";
+import { tauri } from "../../lib/tauri";
 import { pop } from "../../lib/sound";
 import type { FrontendConfig } from "../../lib/types";
 import { Button } from "../ui/Button";
@@ -11,6 +12,57 @@ import { Group, Row } from "./Group";
 import { BlacklistGroup } from "./BlacklistGroup";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
+
+/**
+ * In-app confirmation. The webview's native `window.confirm()` is a no-op in
+ * the Tauri WKWebView (it returns false), so destructive actions gated on it
+ * silently never ran. This styled modal replaces it and actually works.
+ */
+function ConfirmModal({
+  message,
+  confirmLabel,
+  danger,
+  onConfirm,
+  onCancel,
+}: {
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useLanguage();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter") onConfirm();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel, onConfirm]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-[300px] rounded-xl border border-border bg-surface p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[13px] leading-[1.5] text-text">{message}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel}>
+            {t("cancel")}
+          </Button>
+          <Button variant={danger ? "danger" : "primary"} onClick={onConfirm}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function NoteRow({ icon, children }: { icon: "shield" | "clip"; children: React.ReactNode }) {
   return (
@@ -26,10 +78,25 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
   const { t, languageSetting, setLanguageSetting } = useLanguage();
   const { themeSetting, setThemeSetting } = useTheme();
   const [autoLaunch, setAutoLaunch] = useState(false);
+  const [email, setEmail] = useState(config.email);
+  const [confirmKind, setConfirmKind] = useState<null | "unpair" | "delete">(null);
+  const [deleteError, setDeleteError] = useState(false);
 
   useEffect(() => {
     isEnabled().then(setAutoLaunch).catch(() => {});
   }, []);
+
+  // Installs paired before the email was stored: fetch it once from /api/me
+  // and persist it locally so it shows here and survives restarts.
+  useEffect(() => {
+    if (email) return;
+    fetchMe(config).then((e) => {
+      if (e) {
+        setEmail(e);
+        tauri.updateEmail(e).catch(() => {});
+      }
+    });
+  }, [email, config]);
 
   const onToggleAutoLaunch = async (on: boolean) => {
     setAutoLaunch(on);
@@ -54,19 +121,18 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
     if (on) pop();
   };
 
-  const onUnpair = async () => {
-    if (confirm(t("unpairConfirm"))) await unpair();
+  const doUnpair = async () => {
+    setConfirmKind(null);
+    await unpair();
   };
 
-  const onDeleteAccount = async () => {
-    // Double confirmation: irreversible action that destroys the account for ALL
-    // devices, not just this one.
-    if (!confirm(t("deleteAccountConfirm"))) return;
+  const doDeleteAccount = async () => {
+    setConfirmKind(null);
     try {
       await deleteAccount(config);
     } catch (e) {
       console.error("delete account", e);
-      alert(t("deleteAccountError"));
+      setDeleteError(true);
       return;
     }
     // Local purge + back to onboarding.
@@ -91,6 +157,10 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
       <div className="flex-1 flex flex-col justify-between overflow-y-auto p-4 gap-6 scroll-slim">
         <div className="flex flex-col gap-4">
           <Group title={t("connexion")}>
+            <Row>
+              <span className="font-medium text-text">{t("account")}</span>
+              <span className="font-mono text-[11.5px] text-dim select-text">{email || "—"}</span>
+            </Row>
             <Row>
               <span className="font-medium text-text">{t("server")}</span>
               <span className="font-mono text-[11.5px] text-dim select-text">{config.server_url}</span>
@@ -161,17 +231,44 @@ export function SettingsView({ config }: { config: FrontendConfig }) {
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-2">
-          <Button variant="danger" onClick={onUnpair}>
+          <Button variant="danger" onClick={() => setConfirmKind("unpair")}>
             {t("unpairButton")}
           </Button>
           <button
-            onClick={onDeleteAccount}
+            onClick={() => setConfirmKind("delete")}
             className="self-center py-1 text-[12px] text-faint transition-colors hover:text-danger"
           >
             {t("deleteAccountButton")}
           </button>
         </div>
       </div>
+
+      {confirmKind === "unpair" && (
+        <ConfirmModal
+          message={t("unpairConfirm")}
+          confirmLabel={t("unpairButton")}
+          danger
+          onConfirm={doUnpair}
+          onCancel={() => setConfirmKind(null)}
+        />
+      )}
+      {confirmKind === "delete" && (
+        <ConfirmModal
+          message={t("deleteAccountConfirm")}
+          confirmLabel={t("deleteAccountButton")}
+          danger
+          onConfirm={doDeleteAccount}
+          onCancel={() => setConfirmKind(null)}
+        />
+      )}
+      {deleteError && (
+        <ConfirmModal
+          message={t("deleteAccountError")}
+          confirmLabel={t("confirm")}
+          onConfirm={() => setDeleteError(false)}
+          onCancel={() => setDeleteError(false)}
+        />
+      )}
     </div>
   );
 }

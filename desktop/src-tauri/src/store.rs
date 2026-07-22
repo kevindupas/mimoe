@@ -19,6 +19,8 @@ pub struct Config {
     pub server_url: String,   // e.g. http://host:8000
     pub device_id: String,    // device uuid (generated on first launch)
     pub user_id: i64,         // account (for the private channel clips.{user_id})
+    #[serde(default)]
+    pub email: String,        // account email (shown in settings)
     pub reverb_app_key: String,
     pub reverb_host: String,
     pub reverb_port: u16,

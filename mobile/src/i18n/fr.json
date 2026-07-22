@@ -91,5 +91,6 @@
   "cancel": "Annuler",
   "deleteAccountButton": "Supprimer mon compte",
   "deleteAccountConfirm": "Supprimer définitivement ton compte et toutes ses données, sur TOUS tes appareils ? Cette action est irréversible.",
-  "deleteAccountError": "La suppression a échoué. Réessaie."
+  "deleteAccountError": "La suppression a échoué. Réessaie.",
+  "rowAccount": "Compte"
 }

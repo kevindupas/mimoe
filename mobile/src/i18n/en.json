@@ -91,5 +91,6 @@
   "cancel": "Cancel",
   "deleteAccountButton": "Delete my account",
   "deleteAccountConfirm": "Permanently delete your account and all its data, on ALL your devices? This cannot be undone.",
-  "deleteAccountError": "Deletion failed. Please try again."
+  "deleteAccountError": "Deletion failed. Please try again.",
+  "rowAccount": "Account"
 }

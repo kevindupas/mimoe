@@ -106,6 +106,7 @@ class AuthController extends Controller
         return response()->json([
             'token' => $token,
             'user_id' => $user->id,
+            'email' => $user->email,
             'reverb_app_key' => config('reverb.apps.apps.0.key'),
             'reverb_host' => $host,
             'reverb_port' => $port,
@@ -120,6 +121,12 @@ class AuthController extends Controller
      * DB cascade (cascadeOnDelete on user_id). Sanctum tokens, however, do not
      * cascade — we revoke them explicitly.
      */
+    /** Returns the authenticated account's email (for the settings screen). */
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json(['email' => $request->user()->email]);
+    }
+
     public function deleteAccount(Request $request): JsonResponse
     {
         $user = $request->user();

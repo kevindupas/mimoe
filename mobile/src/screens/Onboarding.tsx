@@ -93,7 +93,7 @@ export default function Onboarding({ p, onDone }: { p: Palette; onDone: () => vo
       // Without it, a different formatting would produce a different key.
       const key = await deriveKey(normalizeSeed(seed));
       await saveConfig({
-        serverUrl: url, deviceId, userId: res.userId, deviceToken: res.token,
+        serverUrl: url, deviceId, userId: res.userId, email: res.email || email.trim(), deviceToken: res.token,
         reverbAppKey: res.reverbAppKey, reverbPort: res.reverbPort,
       }, key);
       onDone();

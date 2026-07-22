@@ -75,6 +75,23 @@ export async function deleteAccount(config: FrontendConfig): Promise<void> {
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
+/** Account email, for installs paired before the email was stored locally. */
+export async function fetchMe(config: FrontendConfig): Promise<string | null> {
+  try {
+    const res = await fetch(`${config.server_url}/api/me`, {
+      headers: {
+        Authorization: `Bearer ${config.device_token}`,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return typeof body?.email === "string" ? body.email : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface PairResult {
   token: string;
   user_id: number;

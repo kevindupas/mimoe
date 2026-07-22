@@ -99,5 +99,7 @@
   "registrationClosedNotice": "Este servidor no acepta nuevos registros. Necesitas una cuenta creada por su administrador.",
   "deleteAccountButton": "Eliminar mi cuenta",
   "deleteAccountConfirm": "¿Eliminar definitivamente tu cuenta y todos sus datos, en TODOS tus dispositivos? Esta acción es irreversible.",
-  "deleteAccountError": "No se pudo eliminar la cuenta. Inténtalo de nuevo."
+  "deleteAccountError": "No se pudo eliminar la cuenta. Inténtalo de nuevo.",
+  "account": "Cuenta",
+  "confirm": "Confirmar"
 }

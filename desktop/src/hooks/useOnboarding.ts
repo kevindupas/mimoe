@@ -101,6 +101,7 @@ export function useOnboarding(onPaired: (config: FrontendConfig) => void) {
           deviceId,
           deviceToken: r.token,
           userId: r.user_id,
+          email: data.email,
           passphrase,
           reverbAppKey: r.reverb_app_key,
           reverbHost: r.reverb_host,

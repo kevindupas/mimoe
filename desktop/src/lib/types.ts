@@ -3,6 +3,7 @@ export interface FrontendConfig {
   device_id: string;
   device_token: string;
   user_id: number;
+  email: string;
   reverb_app_key: string;
   reverb_host: string;
   reverb_port: number;
