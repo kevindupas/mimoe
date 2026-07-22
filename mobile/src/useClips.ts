@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { AuthError, deleteClip, fetchHistory, pinClip, type RawClip } from "./api";
+import { onClipsChanged } from "./clipEvents";
 import { loadClipCache, saveClipCache } from "./clipCache";
 import { decrypt } from "./crypto";
 import { pruneImageCache } from "./imageCache";
@@ -189,9 +190,14 @@ export function useClips(cfg: Config, onUnauthorized?: () => void) {
       load();
     });
 
+    // A clip posted locally (share sheet) → our own device ignores the server
+    // rebroadcast, so refetch to show it right away.
+    const offClipsChanged = onClipsChanged(() => { load(); });
+
     return () => {
       alive = false;
       sub.remove();
+      offClipsChanged();
       pusherRef.current?.disconnect();
     };
   }, [cfg.serverUrl, cfg.deviceToken]);

@@ -7,6 +7,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, ToastAndroid,
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { postBlob, postClip, registerPushToken } from "./src/api";
+import { emitClipsChanged } from "./src/clipEvents";
 import { base64ToBytes, dedupFingerprint, dedupFingerprintText, encrypt, encryptBytes } from "./src/crypto";
 import { loadHidden, saveHidden } from "./src/hidden";
 import { LanguageProvider, useLanguage, type TKey } from "./src/i18n";
@@ -103,6 +104,10 @@ function Root() {
             if (Platform.OS === "android") ToastAndroid.show(t("textSent"), ToastAndroid.SHORT);
           }
         }
+        // Our own device ignores the server rebroadcast (origin == self), so tell
+        // the history to refetch — otherwise the shared clip only shows after a
+        // manual pull-to-refresh.
+        emitClipsChanged();
       } catch {
         if (Platform.OS === "android") ToastAndroid.show(t("sendFailed"), ToastAndroid.SHORT);
       } finally {
